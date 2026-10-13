@@ -13,6 +13,10 @@ $RECYCLE.BIN/
 *.sln
 *.sw?
 
+# Build Outputs
+target/
+
 # Uploaded Files & Temp
 uploads/*
 !uploads/.gitkeep
+
