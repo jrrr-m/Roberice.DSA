@@ -71,6 +71,30 @@ public class AuditView extends JPanel {
         auditTable = UIUtils.createStyledTable(tableModel);
         auditTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        auditTable.getColumnModel().getColumn(2).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Inventory".equalsIgnoreCase(text) ? UIUtils.PRIMARY_LIGHT : UIUtils.INFO_BG;
+            Color fg = "Inventory".equalsIgnoreCase(text) ? UIUtils.PRIMARY : UIUtils.INFO_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
+        auditTable.getColumnModel().getColumn(3).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg, fg;
+            if (text.contains("RESTOCK") || text.contains("SALE")) {
+                bg = UIUtils.SUCCESS_BG; fg = UIUtils.SUCCESS_TEXT;
+            } else if (text.contains("OPEN")) {
+                bg = UIUtils.WARNING_BG; fg = UIUtils.WARNING_TEXT;
+            } else if (text.contains("SPOILAGE")) {
+                bg = UIUtils.DANGER_BG; fg = UIUtils.DANGER_TEXT;
+            } else if (text.contains("REPACK")) {
+                bg = new Color(243, 232, 255); fg = new Color(124, 58, 237);
+            } else {
+                bg = UIUtils.BG_CARD_ALT; fg = UIUtils.TEXT_MUTED;
+            }
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
         JScrollPane scroll = new JScrollPane(auditTable);
         scroll.setBorder(BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1));
         content.add(scroll, BorderLayout.CENTER);

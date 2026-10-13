@@ -95,6 +95,12 @@ public class DashboardView extends JPanel {
             @Override public boolean isCellEditable(int row, int col) { return false; }
         };
         JTable txTable = UIUtils.createStyledTable(txTableModel);
+        txTable.getColumnModel().getColumn(5).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Completed".equalsIgnoreCase(text) ? UIUtils.SUCCESS_BG : UIUtils.DANGER_BG;
+            Color fg = "Completed".equalsIgnoreCase(text) ? UIUtils.SUCCESS_TEXT : UIUtils.DANGER_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
         JScrollPane scroll = new JScrollPane(txTable);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);

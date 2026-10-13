@@ -90,6 +90,22 @@ public class ManageInventoryView extends JPanel {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         JTable logTable = UIUtils.createStyledTable(logTableModel);
+        logTable.getColumnModel().getColumn(1).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg, fg;
+            if (text.contains("RESTOCK")) {
+                bg = UIUtils.SUCCESS_BG; fg = UIUtils.SUCCESS_TEXT;
+            } else if (text.contains("OPEN")) {
+                bg = UIUtils.WARNING_BG; fg = UIUtils.WARNING_TEXT;
+            } else if (text.contains("SPOILAGE")) {
+                bg = UIUtils.DANGER_BG; fg = UIUtils.DANGER_TEXT;
+            } else if (text.contains("REPACK")) {
+                bg = new Color(243, 232, 255); fg = new Color(124, 58, 237);
+            } else {
+                bg = UIUtils.BG_CARD_ALT; fg = UIUtils.TEXT_MUTED;
+            }
+            return UIUtils.createBadge(text, bg, fg);
+        });
         JScrollPane scroll = new JScrollPane(logTable);
         scroll.setPreferredSize(new Dimension(0, 240));
         logCard.add(scroll, BorderLayout.CENTER);

@@ -84,6 +84,36 @@ public class FileManagerView extends JPanel {
         fileTable = UIUtils.createStyledTable(tableModel);
         fileTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        fileTable.getColumnModel().getColumn(2).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg, fg;
+            if ("Backup".equalsIgnoreCase(text)) {
+                bg = UIUtils.WARNING_BG; fg = UIUtils.WARNING_TEXT;
+            } else if ("Report".equalsIgnoreCase(text)) {
+                bg = UIUtils.INFO_BG; fg = UIUtils.INFO_TEXT;
+            } else if ("Receipt".equalsIgnoreCase(text)) {
+                bg = UIUtils.SUCCESS_BG; fg = UIUtils.SUCCESS_TEXT;
+            } else {
+                bg = UIUtils.PRIMARY_LIGHT; fg = UIUtils.PRIMARY;
+            }
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
+        fileTable.getColumnModel().getColumn(3).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg, fg;
+            if ("SQL".equalsIgnoreCase(text)) {
+                bg = UIUtils.WARNING_BG; fg = UIUtils.WARNING_TEXT;
+            } else if ("CSV".equalsIgnoreCase(text)) {
+                bg = UIUtils.SUCCESS_BG; fg = UIUtils.SUCCESS_TEXT;
+            } else if ("PDF".equalsIgnoreCase(text)) {
+                bg = UIUtils.DANGER_BG; fg = UIUtils.DANGER_TEXT;
+            } else {
+                bg = UIUtils.BG_CARD_ALT; fg = UIUtils.TEXT_MUTED;
+            }
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
         JScrollPane scroll = new JScrollPane(fileTable);
         scroll.setBorder(BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1));
         content.add(scroll, BorderLayout.CENTER);
