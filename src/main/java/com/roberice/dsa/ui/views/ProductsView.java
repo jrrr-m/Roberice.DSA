@@ -86,6 +86,20 @@ public class ProductsView extends JPanel {
         productTable = UIUtils.createStyledTable(tableModel);
         productTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        productTable.getColumnModel().getColumn(3).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Imported".equalsIgnoreCase(text) ? UIUtils.WARNING_BG : UIUtils.SUCCESS_BG;
+            Color fg = "Imported".equalsIgnoreCase(text) ? UIUtils.WARNING_TEXT : UIUtils.SUCCESS_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
+        productTable.getColumnModel().getColumn(11).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Active".equalsIgnoreCase(text) ? UIUtils.SUCCESS_BG : UIUtils.DANGER_BG;
+            Color fg = "Active".equalsIgnoreCase(text) ? UIUtils.SUCCESS_TEXT : UIUtils.DANGER_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
         JScrollPane scroll = new JScrollPane(productTable);
         scroll.setBorder(BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1));
         content.add(scroll, BorderLayout.CENTER);

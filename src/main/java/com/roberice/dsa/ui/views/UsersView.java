@@ -65,6 +65,20 @@ public class UsersView extends JPanel {
         userTable = UIUtils.createStyledTable(tableModel);
         userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        userTable.getColumnModel().getColumn(3).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "ADMIN".equalsIgnoreCase(text) ? UIUtils.PRIMARY_LIGHT : UIUtils.INFO_BG;
+            Color fg = "ADMIN".equalsIgnoreCase(text) ? UIUtils.PRIMARY : UIUtils.INFO_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
+        userTable.getColumnModel().getColumn(4).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Active".equalsIgnoreCase(text) ? UIUtils.SUCCESS_BG : UIUtils.DANGER_BG;
+            Color fg = "Active".equalsIgnoreCase(text) ? UIUtils.SUCCESS_TEXT : UIUtils.DANGER_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
         JScrollPane scroll = new JScrollPane(userTable);
         scroll.setBorder(BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1));
         content.add(scroll, BorderLayout.CENTER);

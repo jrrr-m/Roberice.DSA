@@ -93,6 +93,20 @@ public class ViewInventoryView extends JPanel {
         inventoryTable = UIUtils.createStyledTable(tableModel);
         inventoryTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        inventoryTable.getColumnModel().getColumn(3).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "Imported".equalsIgnoreCase(text) ? UIUtils.WARNING_BG : UIUtils.SUCCESS_BG;
+            Color fg = "Imported".equalsIgnoreCase(text) ? UIUtils.WARNING_TEXT : UIUtils.SUCCESS_TEXT;
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
+        inventoryTable.getColumnModel().getColumn(12).setCellRenderer((t, val, isSel, hasFocus, row, col) -> {
+            String text = val != null ? String.valueOf(val) : "";
+            Color bg = "In Stock".equalsIgnoreCase(text) ? UIUtils.SUCCESS_BG : ("Low Stock".equalsIgnoreCase(text) ? UIUtils.WARNING_BG : UIUtils.DANGER_BG);
+            Color fg = "In Stock".equalsIgnoreCase(text) ? UIUtils.SUCCESS_TEXT : ("Low Stock".equalsIgnoreCase(text) ? UIUtils.WARNING_TEXT : UIUtils.DANGER_TEXT);
+            return UIUtils.createBadge(text, bg, fg);
+        });
+
         JScrollPane scroll = new JScrollPane(inventoryTable);
         scroll.setBorder(BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1));
         content.add(scroll, BorderLayout.CENTER);
