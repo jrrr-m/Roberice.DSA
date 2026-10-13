@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Available Inventory - Roberice POS & Inventory System</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <main class="main-wrapper">
+      <div class="page-container">
+        
+
+        <div class="card">
+          <!-- Filter Controls -->
+          <div class="filter-bar" style="flex-wrap:wrap; gap:10px;">
+            <div class="search-box" style="flex:1; min-width:200px;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="searchInventory" class="form-control" placeholder="Search variety, origin, or type...">
+            </div>
+
+            <div class="filter-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Origin Filter -->
+              <select id="filterOrigin" class="form-select" style="width: 140px;">
+                <option value="all">All Origins</option>
+                <option value="Local">Local Rice</option>
+                <option value="Imported">Imported Rice</option>
+              </select>
+
+              <!-- Rice Type Filter -->
+              <select id="filterRiceType" class="form-select" style="width: 160px;">
+                <option value="all">All Rice Types</option>
+              </select>
+
+              <!-- Stock Age Filter -->
+              <select id="filterStockAge" class="form-select" style="width: 170px;">
+                <option value="all">All Stock Ages</option>
+                <option value="fresh">Fresh (&lt; 15 days)</option>
+                <option value="normal">Normal (15 - 30 days)</option>
+                <option value="aging">Aging (31 - 60 days)</option>
+                <option value="old">Old Stock (&gt; 60 days)</option>
+              </select>
+
+              <!-- Status Filter -->
+              <select id="filterStatus" class="form-select" style="width: 140px;">
+                <option value="all">All Statuses</option>
+                <option value="instock">In Stock</option>
+                <option value="lowstock">Low Stock</option>
+                <option value="outofstock">Out of Stock</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Inventory Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Rice Variety</th>
+                  <th>Origin & Grain</th>
+                  <th>Sack Price</th>
+                  <th>Per Kg (Tinatakal)</th>
+                  <th>Sacks Left</th>
+                  <th>Pre-Packed (25Kg / 20Kg / 10Kg / 5Kg)</th>
+                  <th>Loose / Tinatakal</th>
+                  <th>Total Volume</th>
+                  <th>Available Batches</th>
+                  <th style="min-width: 105px; text-align: center; white-space: nowrap;">Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Open Sack Modal for View Inventory -->
+  <div class="modal-overlay" id="modalOpenSackView">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Open Sack into Loose Inventory</h3>
+        <button class="modal-close" onclick="closeModal('modalOpenSackView')">&times;</button>
+      </div>
+      <form id="viewOpenSackForm">
+        <div class="modal-body">
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+            Open an unopened sack (20kg, 10kg, 5kg) to convert into loose rice.
+          </p>
+
+          <div class="form-group">
+            <label for="viewOpenSackProduct">Rice Variety</label>
+            <select id="viewOpenSackProduct" class="form-select" required></select>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="viewOpenSackBatch">Rice Batch to Open (FIFO Lot Selection)</label>
+            <select id="viewOpenSackBatch" class="form-select" required></select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="viewOpenSackType">Sack Size to Open</label>
+              <select id="viewOpenSackType" class="form-select" required>
+                <option value="50kg">Whole Sack (50 Kilos) (+50.00 kg loose)</option>
+                <option value="25kg">Half Sack (25 Kilos) (+25.00 kg loose)</option>
+                <option value="20kg">20 Kilos Sack (+20.00 kg loose)</option>
+                <option value="10kg">10 Kilos Sack (+10.00 kg loose)</option>
+                <option value="5kg">5 Kilos Sack (+5.00 kg loose)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="viewOpenSackQty">Number of Sacks</label>
+              <input type="number" id="viewOpenSackQty" class="form-control" value="1" min="1" max="100" required>
+            </div>
+          </div>
+
+          <!-- Live Preview -->
+          <div id="viewOpenSackPreviewBox" style="background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:12px; margin-top:10px;">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">INVENTORY SYNC PREVIEW</div>
+            <div id="viewOpenSackPreviewText" style="font-size:13px; color:var(--text-main);">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="viewOpenSackNote">Note (Optional)</label>
+            <input type="text" id="viewOpenSackNote" class="form-control" placeholder="e.g. Opened 1x 20kg sack">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalOpenSackView')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm & Open Sack</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/data.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/view-inventory.js"></script>
+</body>
+</html>
