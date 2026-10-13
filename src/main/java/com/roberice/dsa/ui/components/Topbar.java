@@ -22,7 +22,7 @@ public class Topbar extends JPanel {
         this.onRefresh = onRefresh;
 
         setLayout(new BorderLayout());
-        setBackground(UIUtils.BG_DARK);
+        setBackground(UIUtils.BG_HEADER);
         setPreferredSize(new Dimension(0, 72));
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, UIUtils.BORDER_COLOR),
@@ -36,7 +36,7 @@ public class Topbar extends JPanel {
 
         titleLabel = new JLabel("Dashboard Overview");
         titleLabel.setFont(UIUtils.FONT_TITLE);
-        titleLabel.setForeground(UIUtils.TEXT_PRIMARY);
+        titleLabel.setForeground(UIUtils.TEXT_MAIN);
 
         subtitleLabel = new JLabel("Welcome back. Here is your grain inventory and sales snapshot.");
         subtitleLabel.setFont(UIUtils.FONT_REGULAR);
@@ -54,13 +54,13 @@ public class Topbar extends JPanel {
 
         clockLabel = new JLabel();
         clockLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        clockLabel.setForeground(UIUtils.TEXT_SECONDARY);
+        clockLabel.setForeground(UIUtils.TEXT_MUTED);
         updateClock();
 
         Timer timer = new Timer(1000, e -> updateClock());
         timer.start();
 
-        JLabel statusBadge = UIUtils.createBadge("ONLINE", new Color(6, 78, 59), UIUtils.ACCENT_SUCCESS);
+        JLabel statusBadge = UIUtils.createBadge("ONLINE", UIUtils.SUCCESS_BG, UIUtils.SUCCESS_TEXT);
 
         refreshButton = UIUtils.createSecondaryButton("🔄 Refresh", e -> {
             if (this.onRefresh != null) this.onRefresh.run();

@@ -266,8 +266,8 @@ public class PosView extends JPanel {
         nameLbl.setForeground(UIUtils.TEXT_PRIMARY);
 
         JLabel originBadge = UIUtils.createBadge(p.getOrigin(),
-                "Imported".equalsIgnoreCase(p.getOrigin()) ? new Color(124, 45, 18) : new Color(6, 78, 59),
-                "Imported".equalsIgnoreCase(p.getOrigin()) ? UIUtils.ACCENT_WARNING : UIUtils.ACCENT_SUCCESS);
+                "Imported".equalsIgnoreCase(p.getOrigin()) ? UIUtils.WARNING_BG : UIUtils.SUCCESS_BG,
+                "Imported".equalsIgnoreCase(p.getOrigin()) ? UIUtils.WARNING_TEXT : UIUtils.SUCCESS_TEXT);
 
         head.add(nameLbl, BorderLayout.WEST);
         head.add(originBadge, BorderLayout.EAST);

@@ -36,7 +36,7 @@ public class MainFrame extends JFrame {
         setSize(1280, 820);
         setMinimumSize(new Dimension(1024, 700));
         setLocationRelativeTo(null);
-        getContentPane().setBackground(UIUtils.BG_DARK);
+        getContentPane().setBackground(UIUtils.BG_MAIN);
 
         initComponents();
 
@@ -59,14 +59,14 @@ public class MainFrame extends JFrame {
 
         // Right side container (Topbar + Cards)
         JPanel rightContainer = new JPanel(new BorderLayout());
-        rightContainer.setBackground(UIUtils.BG_DARK);
+        rightContainer.setBackground(UIUtils.BG_MAIN);
 
         topbar = new Topbar(this::refreshCurrentView);
         rightContainer.add(topbar, BorderLayout.NORTH);
 
         cardLayout = new CardLayout();
         cardsPanel = new JPanel(cardLayout);
-        cardsPanel.setBackground(UIUtils.BG_DARK);
+        cardsPanel.setBackground(UIUtils.BG_MAIN);
 
         // Instantiate view panels
         dashboardView = new DashboardView(this::navigateTo);

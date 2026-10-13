@@ -6,9 +6,12 @@ import com.roberice.dsa.util.UIUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class SalesReportView extends JPanel {
@@ -49,11 +52,37 @@ public class SalesReportView extends JPanel {
         periodButtons.setOpaque(false);
 
         String[] periods = {"Today", "This Week", "This Month", "This Year"};
+        List<JButton> pBtns = new ArrayList<>();
         for (String p : periods) {
-            JButton btn = UIUtils.createSecondaryButton(p, e -> {
+            JButton btn = new JButton(p);
+            btn.setFont(UIUtils.FONT_BOLD);
+            btn.setFocusPainted(false);
+            btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btn.addActionListener(e -> {
                 selectedPeriod = p;
+                for (int i = 0; i < periods.length; i++) {
+                    if (periods[i].equals(p)) {
+                        pBtns.get(i).setBackground(UIUtils.PRIMARY);
+                        pBtns.get(i).setForeground(Color.WHITE);
+                    } else {
+                        pBtns.get(i).setBackground(UIUtils.BG_INPUT);
+                        pBtns.get(i).setForeground(UIUtils.TEXT_MAIN);
+                    }
+                }
                 loadReport();
             });
+            if (p.equals(selectedPeriod)) {
+                btn.setBackground(UIUtils.PRIMARY);
+                btn.setForeground(Color.WHITE);
+            } else {
+                btn.setBackground(UIUtils.BG_INPUT);
+                btn.setForeground(UIUtils.TEXT_MAIN);
+            }
+            btn.setBorder(BorderFactory.createCompoundBorder(
+                    new LineBorder(UIUtils.BORDER_COLOR, 1, true),
+                    new EmptyBorder(7, 14, 7, 14)
+            ));
+            pBtns.add(btn);
             periodButtons.add(btn);
         }
 
@@ -69,10 +98,10 @@ public class SalesReportView extends JPanel {
         kpiGrid.setOpaque(false);
         kpiGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 
-        kpiGrid.add(createKpiCard("TOTAL REVENUE", revVal, "💰", UIUtils.ACCENT_PRIMARY));
+        kpiGrid.add(createKpiCard("TOTAL REVENUE", revVal, "💰", UIUtils.PRIMARY));
         kpiGrid.add(createKpiCard("TRANSACTIONS", txVal, "🧾", UIUtils.ACCENT_INFO));
         kpiGrid.add(createKpiCard("AVG ORDER VALUE", aovVal, "📈", UIUtils.ACCENT_SUCCESS));
-        kpiGrid.add(createKpiCard("VOLUME SOLD", volVal, "🌾", UIUtils.ACCENT_WARNING));
+        kpiGrid.add(createKpiCard("VOLUME SOLD", volVal, "🌾", UIUtils.BRAND_GOLD));
 
         content.add(kpiGrid);
         content.add(Box.createVerticalStrut(20));

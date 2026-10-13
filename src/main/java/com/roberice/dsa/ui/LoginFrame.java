@@ -25,11 +25,11 @@ public class LoginFrame extends JFrame {
         setSize(480, 560);
         setLocationRelativeTo(null);
         setResizable(false);
-        getContentPane().setBackground(UIUtils.BG_DARK);
+        getContentPane().setBackground(UIUtils.BG_MAIN);
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBackground(UIUtils.BG_DARK);
+        mainPanel.setBackground(UIUtils.BG_MAIN);
         mainPanel.setBorder(new EmptyBorder(40, 48, 40, 48));
 
         // Brand Banner
@@ -39,7 +39,7 @@ public class LoginFrame extends JFrame {
 
         JLabel brandLbl = new JLabel("ROBERICE DSA", SwingConstants.CENTER);
         brandLbl.setFont(UIUtils.FONT_TITLE);
-        brandLbl.setForeground(UIUtils.TEXT_PRIMARY);
+        brandLbl.setForeground(UIUtils.PRIMARY);
         brandLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel subLbl = new JLabel("Grains Trading & Inventory Management System", SwingConstants.CENTER);
@@ -52,11 +52,19 @@ public class LoginFrame extends JFrame {
         mainPanel.add(brandLbl);
         mainPanel.add(Box.createVerticalStrut(4));
         mainPanel.add(subLbl);
-        mainPanel.add(Box.createVerticalStrut(32));
+        mainPanel.add(Box.createVerticalStrut(28));
 
-        // Card Container for Form
-        JPanel card = UIUtils.createCard();
+        // Card Container for Form (with signature Harvest Gold top border)
+        JPanel card = new JPanel();
+        card.setBackground(UIUtils.BG_CARD);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createCompoundBorder(
+                        new LineBorder(UIUtils.BORDER_COLOR, 1, true),
+                        BorderFactory.createMatteBorder(3, 0, 0, 0, UIUtils.BRAND_GOLD)
+                ),
+                new EmptyBorder(24, 28, 24, 28)
+        ));
 
         // Username
         JLabel uLbl = new JLabel("Username");

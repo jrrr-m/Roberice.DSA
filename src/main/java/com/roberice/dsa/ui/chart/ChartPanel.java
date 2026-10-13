@@ -23,20 +23,23 @@ public class ChartPanel extends JPanel {
     private String valueKey = "value";
 
     private static final Color[] PALETTE = {
-            new Color(59, 130, 246),  // Blue
+            new Color(31, 77, 50),    // Forest Green (Primary)
+            new Color(245, 158, 11),  // Harvest Gold
             new Color(16, 185, 129),  // Emerald
-            new Color(245, 158, 11),  // Amber
-            new Color(168, 85, 247),  // Purple
-            new Color(236, 72, 153),  // Pink
-            new Color(14, 165, 233),  // Sky
-            new Color(249, 115, 22),  // Orange
-            new Color(20, 184, 166)   // Teal
+            new Color(217, 119, 6),   // Amber
+            new Color(13, 148, 136),  // Teal
+            new Color(6, 182, 212),   // Sky Cyan
+            new Color(139, 92, 246)   // Purple
     };
 
     public ChartPanel(ChartType chartType, String title) {
         this.chartType = chartType;
         this.title = title;
         setBackground(UIUtils.BG_CARD);
+        setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(UIUtils.BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
         setPreferredSize(new Dimension(350, 240));
     }
 

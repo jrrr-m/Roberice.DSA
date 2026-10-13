@@ -69,7 +69,7 @@ public class ViewInventoryView extends JPanel {
         JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rightActions.setOpaque(false);
 
-        JButton openSackBtn = UIUtils.createPrimaryButton("🌾 Open Sack to Loose", e -> openSackDialog());
+        JButton openSackBtn = UIUtils.createWarningButton("🌾 Open Sack to Loose", e -> openSackDialog());
         JButton batchBtn = UIUtils.createSecondaryButton("🔍 View FIFO Batches", e -> viewBatchDialog());
         JButton refreshBtn = UIUtils.createSecondaryButton("🔄 Refresh", e -> loadData());
 

@@ -48,10 +48,10 @@ public class DashboardView extends JPanel {
         kpiGrid.setOpaque(false);
         kpiGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 
-        kpiGrid.add(createKpiCard("TODAY'S REVENUE", todaySalesVal, "💰", UIUtils.ACCENT_PRIMARY));
+        kpiGrid.add(createKpiCard("TODAY'S REVENUE", todaySalesVal, "💰", UIUtils.PRIMARY));
         kpiGrid.add(createKpiCard("TRANSACTIONS", todayTxVal, "🧾", UIUtils.ACCENT_INFO));
-        kpiGrid.add(createKpiCard("WAREHOUSE SACKS", totalSacksVal, "🌾", UIUtils.ACCENT_SUCCESS));
-        kpiGrid.add(createKpiCard("LOW STOCK ALERTS", lowStockVal, "⚠️", UIUtils.ACCENT_WARNING));
+        kpiGrid.add(createKpiCard("WAREHOUSE SACKS", totalSacksVal, "🌾", UIUtils.BRAND_GOLD));
+        kpiGrid.add(createKpiCard("LOW STOCK ALERTS", lowStockVal, "⚠️", UIUtils.ACCENT_DANGER));
 
         contentPanel.add(kpiGrid);
         contentPanel.add(Box.createVerticalStrut(20));
