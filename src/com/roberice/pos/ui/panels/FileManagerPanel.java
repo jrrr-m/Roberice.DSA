@@ -247,7 +247,8 @@ public class FileManagerPanel extends JPanel {
         header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -259,6 +260,7 @@ public class FileManagerPanel extends JPanel {
         addHeaderCol(header, gbc, "DATE & TIME", 0.11, SwingConstants.LEFT);
         addHeaderCol(header, gbc, "ACTIONS", 0.14, SwingConstants.CENTER);
 
+        UIUtils.alignTableContentLeft(header);
         return header;
     }
 
@@ -364,7 +366,8 @@ public class FileManagerPanel extends JPanel {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -414,6 +417,7 @@ public class FileManagerPanel extends JPanel {
         gbc.weightx = 0.14;
         row.add(createActionsCell(f), gbc);
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 
@@ -478,7 +482,7 @@ public class FileManagerPanel extends JPanel {
     }
 
     private JPanel createCategoryCell(String category) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 14));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         p.setOpaque(false);
 
         Color bg;
@@ -522,7 +526,7 @@ public class FileManagerPanel extends JPanel {
     }
 
     private JPanel createActionsCell(FileRecord f) {
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 12));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         actions.setOpaque(false);
 
         boolean isBackup = "Database Backup".equalsIgnoreCase(f.getCategory()) ||

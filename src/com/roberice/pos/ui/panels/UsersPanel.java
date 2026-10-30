@@ -382,7 +382,8 @@ public class UsersPanel extends JPanel {
         header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -393,6 +394,7 @@ public class UsersPanel extends JPanel {
         addHeaderCol(header, gbc, "STATUS", 0.08, SwingConstants.LEFT);
         addHeaderCol(header, gbc, "ACTIONS", 0.12, SwingConstants.RIGHT);
 
+        UIUtils.alignTableContentLeft(header);
         return header;
     }
 
@@ -411,7 +413,8 @@ public class UsersPanel extends JPanel {
         header.setBorder(new EmptyBorder(10, 16, 10, 16));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
 
         addHeaderCol(header, gbc, "REQ ID", 0.08, SwingConstants.LEFT);
@@ -421,6 +424,7 @@ public class UsersPanel extends JPanel {
         addHeaderCol(header, gbc, "STATUS", 0.12, SwingConstants.LEFT);
         addHeaderCol(header, gbc, "ACTIONS", 0.18, SwingConstants.RIGHT);
 
+        UIUtils.alignTableContentLeft(header);
         return header;
     }
 
@@ -553,7 +557,8 @@ public class UsersPanel extends JPanel {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 52));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -584,6 +589,7 @@ public class UsersPanel extends JPanel {
         gbc.weightx = 0.12;
         row.add(createUserActionsCell(u), gbc);
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 
@@ -782,7 +788,7 @@ public class UsersPanel extends JPanel {
     }
 
     private JPanel createUserActionsCell(User u) {
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 12));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         actions.setOpaque(false);
 
         boolean isSelf = AuthSession.getCurrentUser() != null &&
@@ -813,7 +819,8 @@ public class UsersPanel extends JPanel {
         row.setBorder(new EmptyBorder(12, 16, 12, 16));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
 
         // 1. REQ ID
@@ -877,6 +884,7 @@ public class UsersPanel extends JPanel {
         }
         row.add(actions, gbc);
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 

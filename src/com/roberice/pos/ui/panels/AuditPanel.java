@@ -257,7 +257,8 @@ public class AuditPanel extends JPanel {
         header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -269,6 +270,7 @@ public class AuditPanel extends JPanel {
         addHeaderCol(header, gbc, "REASON & DETAILS", 0.18, SwingConstants.LEFT);
         addHeaderCol(header, gbc, "PERFORMED BY", 0.10, SwingConstants.LEFT);
 
+        UIUtils.alignTableContentLeft(header);
         return header;
     }
 
@@ -382,7 +384,8 @@ public class AuditPanel extends JPanel {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 4, 0, 4);
         gbc.weighty = 1.0;
 
@@ -428,6 +431,7 @@ public class AuditPanel extends JPanel {
         gbc.weightx = 0.10;
         row.add(createUserCell(e.getPerformedBy()), gbc);
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 
@@ -452,7 +456,7 @@ public class AuditPanel extends JPanel {
     }
 
     private JPanel createActionTypeCell(String actionType) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 14));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         p.setOpaque(false);
 
         Color bg;
@@ -499,7 +503,7 @@ public class AuditPanel extends JPanel {
     }
 
     private JPanel createBatchRefCell(String batchRef) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 14));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         p.setOpaque(false);
 
         JLabel pill = new JLabel(batchRef != null ? batchRef : "-", SwingConstants.CENTER) {
@@ -523,7 +527,7 @@ public class AuditPanel extends JPanel {
     }
 
     private JPanel createUserCell(String performedBy) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 14));
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         p.setOpaque(false);
 
         JLabel icon = new JLabel() {

@@ -42,7 +42,33 @@ public class InventoryManagePanel extends JPanel {
     private final JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"All Statuses", "Sufficient", "Low Stock", "Out of Stock"});
 
     // Rows Container
-    private final JPanel rowsContainer = new JPanel();
+    private final JPanel rowsContainer = new ScrollableRowsPanel();
+
+    private static class ScrollableRowsPanel extends JPanel implements Scrollable {
+        public ScrollableRowsPanel() {
+            super();
+        }
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 64;
+        }
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
 
     // Design Colors
     private static final Color COLOR_APP_BG = new Color(246, 243, 233);
@@ -187,9 +213,12 @@ public class InventoryManagePanel extends JPanel {
         th.setPreferredSize(new Dimension(1000, 36));
         th.setMinimumSize(new Dimension(800, 36));
         th.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(225, 218, 198)));
+        th.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(225, 218, 198)),
+                new EmptyBorder(8, 16, 8, 16)
+        ));
 
-        double[] weights = {0.15, 0.09, 0.08, 0.16, 0.08, 0.09, 0.12, 0.08, 0.06, 0.09};
+        double[] weights = {0.16, 0.08, 0.08, 0.17, 0.08, 0.08, 0.11, 0.08, 0.06, 0.10};
         String[] titles = {
             "RICE VARIETY", "ORIGIN & TYPE", "SACKS STOCK",
             "PRE-PACKED (25KG / 20KG / 10KG / 5KG)", "LOOSE / TINATAKAL", "TOTAL EQUIVALENT",
@@ -197,36 +226,21 @@ public class InventoryManagePanel extends JPanel {
         };
 
         GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(0, 4, 0, 4);
         c.weighty = 1.0;
 
         for (int i = 0; i < titles.length; i++) {
             c.gridx = i;
             c.weightx = weights[i];
 
-            JLabel lbl = new JLabel(titles[i]);
+            JLabel lbl = new JLabel(titles[i], SwingConstants.LEFT);
             lbl.setFont(new Font("Segoe UI", Font.BOLD, 9));
             lbl.setForeground(new Color(70, 75, 70));
-            lbl.setBorder(new EmptyBorder(0, 4, 0, 4));
-
-            if (i == 2) {
-                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-            } else if (i == 3) {
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            } else if (i == 4 || i == 5) {
-                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-            } else if (i == 6) {
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            } else if (i == 7) {
-                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-            } else if (i >= 8) {
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            } else {
-                lbl.setHorizontalAlignment(SwingConstants.LEFT);
-            }
-
             th.add(lbl, c);
         }
+        UIUtils.alignTableContentLeft(th);
         return th;
     }
 
@@ -293,6 +307,7 @@ public class InventoryManagePanel extends JPanel {
 
             JSeparator sep = new JSeparator();
             sep.setForeground(new Color(240, 235, 222));
+            sep.setAlignmentX(Component.CENTER_ALIGNMENT);
             rowsContainer.add(sep);
         }
 
@@ -310,31 +325,44 @@ public class InventoryManagePanel extends JPanel {
     private JPanel createManageRow(Product p, Inventory inv, List<InventoryBatch> batches, String status) {
         JPanel row = new JPanel(new GridBagLayout());
         row.setOpaque(false);
+        row.setBorder(new EmptyBorder(6, 16, 6, 16));
         row.setPreferredSize(new Dimension(1000, 68));
         row.setMinimumSize(new Dimension(800, 68));
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
+        row.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        double[] weights = {0.15, 0.09, 0.08, 0.16, 0.08, 0.09, 0.12, 0.08, 0.06, 0.09};
+        double[] weights = {0.16, 0.08, 0.08, 0.17, 0.08, 0.08, 0.11, 0.08, 0.06, 0.10};
 
         GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(0, 4, 0, 4);
         c.weighty = 1.0;
 
-        // 1. Variety Name + Subtitle
-        JPanel cell1 = new JPanel(new GridLayout(2, 1, 0, 1));
+        // 1. Variety Name + Subtitle (Wrapped with maximum width, excess text to second line)
+        JPanel cell1 = new JPanel();
+        cell1.setLayout(new BoxLayout(cell1, BoxLayout.Y_AXIS));
         cell1.setOpaque(false);
-        JLabel lblName = new JLabel(p.getProductName());
+        cell1.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lblName = new JLabel("<html><body style='margin:0;padding:0;'><div style='width:125px;line-height:1.15;'>"
+                + p.getProductName() + "</div></body></html>");
         lblName.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblName.setForeground(new Color(20, 30, 25));
+        lblName.setToolTipText(p.getProductName());
+        lblName.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         JLabel lblSub = new JLabel(p.getRiceType() != null ? p.getRiceType() : "Rice Variety");
         lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         lblSub.setForeground(new Color(130, 140, 135));
+        lblSub.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         cell1.add(lblName);
+        cell1.add(Box.createVerticalStrut(2));
         cell1.add(lblSub);
-        cell1.setBorder(new EmptyBorder(0, 6, 0, 4));
 
         // 2. Origin & Type
-        JPanel cell2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
+        JPanel cell2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         cell2.setOpaque(false);
         boolean isLocal = "Local".equalsIgnoreCase(p.getOrigin());
         JLabel badgeOrigin = createBadgePill(p.getOrigin(),
@@ -344,52 +372,53 @@ public class InventoryManagePanel extends JPanel {
 
         // 3. Sacks Stock
         int sacks = inv != null ? inv.getStockSacks() : 0;
-        JPanel cell3 = new JPanel(new GridLayout(2, 1, 0, 0));
+        JPanel cell3 = new JPanel();
+        cell3.setLayout(new BoxLayout(cell3, BoxLayout.Y_AXIS));
         cell3.setOpaque(false);
-        JLabel lblSackCount = new JLabel(sacks + " sacks");
+        cell3.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lblSackCount = new JLabel(sacks + " sacks", SwingConstants.LEFT);
         lblSackCount.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblSackCount.setForeground(new Color(20, 30, 25));
-        lblSackCount.setHorizontalAlignment(SwingConstants.RIGHT);
-        JLabel lblSackSize = new JLabel("(50Kg)");
+        lblSackCount.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lblSackSize = new JLabel("(50Kg)", SwingConstants.LEFT);
         lblSackSize.setFont(new Font("Segoe UI", Font.PLAIN, 9));
         lblSackSize.setForeground(new Color(130, 140, 135));
-        lblSackSize.setHorizontalAlignment(SwingConstants.RIGHT);
+        lblSackSize.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         cell3.add(lblSackCount);
         cell3.add(lblSackSize);
-        cell3.setBorder(new EmptyBorder(0, 2, 0, 8));
 
         // 4. Pre-packed breakdown
-        JPanel cell4 = new JPanel(new FlowLayout(FlowLayout.CENTER, 3, 4));
+        JPanel cell4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 2));
         cell4.setOpaque(false);
         int p25 = inv != null ? inv.getPackaged25kg() : 0;
         int p20 = inv != null ? inv.getPackaged20kg() : 0;
         int p10 = inv != null ? inv.getPackaged10kg() : 0;
         int p5 = inv != null ? inv.getPackaged5kg() : 0;
-        cell4.add(createMiniPill("25kg Half: " + p25, new Color(238, 242, 255), new Color(79, 70, 229)));
+        cell4.add(createMiniPill("25kg: " + p25, new Color(238, 242, 255), new Color(79, 70, 229)));
         cell4.add(createMiniPill("20kg: " + p20, new Color(248, 250, 252), new Color(100, 116, 139)));
         cell4.add(createMiniPill("10kg: " + p10, new Color(254, 243, 199), new Color(180, 83, 9)));
         cell4.add(createMiniPill("5kg: " + p5, new Color(243, 232, 255), new Color(147, 51, 234)));
 
         // 5. Loose / Tinatakal
         double looseKg = inv != null ? inv.getStockKg() : 0;
-        JLabel cell5 = new JLabel(String.format("%.1f kg", looseKg));
+        JLabel cell5 = new JLabel(String.format("%.1f kg", looseKg), SwingConstants.LEFT);
         cell5.setFont(new Font("Segoe UI", Font.BOLD, 11));
         cell5.setForeground(new Color(40, 50, 45));
-        cell5.setHorizontalAlignment(SwingConstants.RIGHT);
-        cell5.setBorder(new EmptyBorder(0, 2, 0, 8));
 
         // 6. Total Equivalent
         double totalKg = inv != null ? ((sacks * 50.0) + (p25 * 25.0) + (p20 * 20.0) + (p10 * 10.0) + (p5 * 5.0) + looseKg) : 0;
-        JLabel cell6 = new JLabel(String.format("%,.2f kg", totalKg));
+        JLabel cell6 = new JLabel(String.format("%,.2f kg", totalKg), SwingConstants.LEFT);
         cell6.setFont(new Font("Segoe UI", Font.BOLD, 11));
         cell6.setForeground(new Color(20, 30, 25));
-        cell6.setHorizontalAlignment(SwingConstants.RIGHT);
-        cell6.setBorder(new EmptyBorder(0, 2, 0, 8));
 
         // 7. Stock Age & Batch
         JPanel cell7 = new JPanel();
         cell7.setLayout(new BoxLayout(cell7, BoxLayout.Y_AXIS));
         cell7.setOpaque(false);
+        cell7.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         InventoryBatch oldestBatch = !batches.isEmpty() ? batches.get(0) : null;
         long age = oldestBatch != null ? oldestBatch.getAgeInDays() : 0;
@@ -402,12 +431,12 @@ public class InventoryManagePanel extends JPanel {
         Color ageFg = age > 60 ? new Color(180, 83, 9) : (age > 30 ? new Color(14, 116, 144) : new Color(22, 101, 52));
 
         JLabel lblAgePill = createBadgePill(agePillText, ageBg, ageFg);
-        lblAgePill.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblAgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblBatchMeta = new JLabel(bCode + " (" + bDate + ")");
+        JLabel lblBatchMeta = new JLabel(bCode + " (" + bDate + ")", SwingConstants.LEFT);
         lblBatchMeta.setFont(new Font("Segoe UI", Font.PLAIN, 8));
         lblBatchMeta.setForeground(new Color(130, 140, 135));
-        lblBatchMeta.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblBatchMeta.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         cell7.add(lblAgePill);
         cell7.add(Box.createVerticalStrut(2));
@@ -415,14 +444,12 @@ public class InventoryManagePanel extends JPanel {
 
         // 8. Low-Stock Alert
         double reorder = inv != null ? inv.getReorderLevelKg() : 250;
-        JLabel cell8 = new JLabel((int) reorder + " kg alert");
+        JLabel cell8 = new JLabel((int) reorder + " kg alert", SwingConstants.LEFT);
         cell8.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         cell8.setForeground(new Color(70, 80, 75));
-        cell8.setHorizontalAlignment(SwingConstants.RIGHT);
-        cell8.setBorder(new EmptyBorder(0, 2, 0, 8));
 
         // 9. Status Pill
-        JPanel cell9 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 4));
+        JPanel cell9 = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4));
         cell9.setOpaque(false);
         Color statBg = "Sufficient".equalsIgnoreCase(status) ? new Color(220, 252, 231) : ("Low Stock".equalsIgnoreCase(status) ? new Color(254, 243, 199) : new Color(254, 242, 242));
         Color statFg = "Sufficient".equalsIgnoreCase(status) ? new Color(22, 101, 52) : ("Low Stock".equalsIgnoreCase(status) ? new Color(180, 83, 9) : new Color(185, 28, 28));
@@ -433,12 +460,14 @@ public class InventoryManagePanel extends JPanel {
         JPanel cell10 = new JPanel();
         cell10.setLayout(new BoxLayout(cell10, BoxLayout.Y_AXIS));
         cell10.setOpaque(false);
-        cell10.setBorder(new EmptyBorder(2, 0, 2, 0));
+        cell10.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton btnOpen = createSmallButton("Open Sack", COLOR_OPEN_SACK, COLOR_OPEN_SACK_HOVER);
+        btnOpen.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnOpen.addActionListener(e -> triggerOpenSack(p));
 
         JButton btnRestock = createSmallButton("Restock", COLOR_RESTOCK, COLOR_RESTOCK_HOVER);
+        btnRestock.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnRestock.addActionListener(e -> triggerRestock(p));
 
         JButton btnAdjust = new JButton("Adjust / Repack") {
@@ -468,11 +497,14 @@ public class InventoryManagePanel extends JPanel {
         btnAdjust.setPreferredSize(new Dimension(84, 21));
         btnAdjust.setMaximumSize(new Dimension(84, 21));
         btnAdjust.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnAdjust.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnAdjust.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnAdjust.addActionListener(e -> showAdjustRepackMenu(p, inv, btnAdjust));
 
         cell10.add(btnOpen);
         cell10.add(Box.createVerticalStrut(2));
+        cell10.add(btnRestock);
+        cell10.add(Box.createVerticalStrut(2));
+        cell10.add(btnAdjust);
         cell10.add(btnRestock);
         cell10.add(Box.createVerticalStrut(2));
         cell10.add(btnAdjust);
@@ -484,6 +516,7 @@ public class InventoryManagePanel extends JPanel {
             row.add(cells[i], c);
         }
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 

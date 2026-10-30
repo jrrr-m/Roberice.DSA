@@ -58,7 +58,33 @@ public class SalesReportPanel extends JPanel {
     private final JLabel lblLooseSold = new JLabel("0.0 kg loose tinatakal");
 
     // Dynamic Variety Table Rows Container
-    private final JPanel rowsContainer = new JPanel();
+    private final JPanel rowsContainer = new ScrollableRowsPanel();
+
+    private static class ScrollableRowsPanel extends JPanel implements Scrollable {
+        public ScrollableRowsPanel() {
+            super();
+        }
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 64;
+        }
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
 
     // Design Colors
     private static final Color COLOR_APP_BG = new Color(246, 243, 233);
@@ -517,37 +543,33 @@ public class SalesReportPanel extends JPanel {
         th.setPreferredSize(new Dimension(1000, 36));
         th.setMinimumSize(new Dimension(800, 36));
         th.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
-        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(225, 218, 198)));
+        th.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(225, 218, 198)),
+                new EmptyBorder(8, 16, 8, 16)
+        ));
 
-        double[] weights = {0.16, 0.08, 0.09, 0.07, 0.07, 0.07, 0.07, 0.07, 0.09, 0.10, 0.11, 0.08};
+        double[] weights = {0.16, 0.08, 0.08, 0.07, 0.07, 0.07, 0.07, 0.07, 0.09, 0.10, 0.11, 0.08};
         String[] titles = {
             "RICE VARIETY", "ORIGIN", "GRAIN TYPE", "50KG SACKS", "25KG HALF", "20KG PACKS",
             "10KG PACKS", "5KG PACKS", "TINATAKAL (KG)", "TOTAL VOLUME", "TOTAL REVENUE", "% SHARE"
         };
 
         GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
+        c.insets = new Insets(0, 4, 0, 4);
         c.weighty = 1.0;
 
         for (int i = 0; i < titles.length; i++) {
             c.gridx = i;
             c.weightx = weights[i];
 
-            JLabel lbl = new JLabel(titles[i]);
+            JLabel lbl = new JLabel(titles[i], SwingConstants.LEFT);
             lbl.setFont(new Font("Segoe UI", Font.BOLD, 9));
             lbl.setForeground(new Color(70, 75, 70));
-            lbl.setBorder(new EmptyBorder(0, 4, 0, 4));
-
-            if (i >= 3 && i <= 10) {
-                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-            } else if (i == 11) {
-                lbl.setHorizontalAlignment(SwingConstants.CENTER);
-            } else {
-                lbl.setHorizontalAlignment(SwingConstants.LEFT);
-            }
-
             th.add(lbl, c);
         }
+        UIUtils.alignTableContentLeft(th);
         return th;
     }
 
@@ -636,22 +658,34 @@ public class SalesReportPanel extends JPanel {
 
             JPanel row = new JPanel(new GridBagLayout());
             row.setOpaque(false);
+            row.setBorder(new EmptyBorder(6, 16, 6, 16));
             row.setPreferredSize(new Dimension(1000, 48));
             row.setMinimumSize(new Dimension(800, 48));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+            row.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             GridBagConstraints c = new GridBagConstraints();
-            c.fill = GridBagConstraints.BOTH;
+            c.fill = GridBagConstraints.HORIZONTAL;
+            c.anchor = GridBagConstraints.WEST;
+            c.insets = new Insets(0, 4, 0, 4);
             c.weighty = 1.0;
 
-            // 1. Variety Name
-            JLabel lblName = new JLabel(r.productName);
+            // 1. Variety Name (Wrapped with maximum width, excess text to second line)
+            JPanel cell1 = new JPanel();
+            cell1.setLayout(new BoxLayout(cell1, BoxLayout.Y_AXIS));
+            cell1.setOpaque(false);
+            cell1.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            JLabel lblName = new JLabel("<html><body style='margin:0;padding:0;'><div style='width:125px;line-height:1.15;'>" 
+                    + r.productName + "</div></body></html>");
             lblName.setFont(new Font("Segoe UI", Font.BOLD, 11));
             lblName.setForeground(new Color(20, 30, 25));
-            lblName.setBorder(new EmptyBorder(0, 4, 0, 4));
+            lblName.setToolTipText(r.productName);
+            lblName.setAlignmentX(Component.LEFT_ALIGNMENT);
+            cell1.add(lblName);
 
             // 2. Origin
-            JPanel pOrigin = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 12));
+            JPanel pOrigin = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
             pOrigin.setOpaque(false);
             boolean isLocal = "Local".equalsIgnoreCase(r.origin);
             JLabel badgeOrigin = createBadgePill(r.origin,
@@ -660,10 +694,9 @@ public class SalesReportPanel extends JPanel {
             pOrigin.add(badgeOrigin);
 
             // 3. Grain Type
-            JLabel lblGrain = new JLabel(r.origin != null ? r.origin : "Rice");
+            JLabel lblGrain = new JLabel(r.origin != null ? r.origin : "Rice", SwingConstants.LEFT);
             lblGrain.setFont(new Font("Segoe UI", Font.PLAIN, 10));
             lblGrain.setForeground(new Color(70, 80, 75));
-            lblGrain.setBorder(new EmptyBorder(0, 4, 0, 4));
 
             // 4. 50kg Sacks
             JLabel lbl50 = createAlignedNumber(String.valueOf(r.sacksSold));
@@ -684,15 +717,13 @@ public class SalesReportPanel extends JPanel {
             lblVol.setFont(new Font("Segoe UI", Font.BOLD, 11));
 
             // 11. Total Revenue
-            JLabel lblRev = new JLabel(UIUtils.formatCurrency(r.totalRevenue));
+            JLabel lblRev = new JLabel(UIUtils.formatCurrency(r.totalRevenue), SwingConstants.LEFT);
             lblRev.setFont(new Font("Segoe UI", Font.BOLD, 11));
             lblRev.setForeground(new Color(20, 30, 25));
-            lblRev.setHorizontalAlignment(SwingConstants.RIGHT);
-            lblRev.setBorder(new EmptyBorder(0, 2, 0, 8));
 
-            // 12. % Share with mini progress bar
+            // 12. % Share with mini progress bar (left-aligned)
             double sharePct = (r.totalRevenue / grandTotal) * 100.0;
-            JPanel pShare = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 15));
+            JPanel pShare = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
             pShare.setOpaque(false);
 
             JPanel bar = new JPanel() {
@@ -708,24 +739,27 @@ public class SalesReportPanel extends JPanel {
             bar.setPreferredSize(new Dimension(28, 8));
             bar.setOpaque(false);
 
-            JLabel lblPct = new JLabel(String.format("%.1f%%", sharePct));
+            JLabel lblPct = new JLabel(String.format("%.1f%%", sharePct), SwingConstants.LEFT);
             lblPct.setFont(new Font("Segoe UI", Font.PLAIN, 9));
             lblPct.setForeground(new Color(70, 80, 75));
 
             pShare.add(bar);
             pShare.add(lblPct);
 
-            Component[] cells = {lblName, pOrigin, lblGrain, lbl50, lbl25, lbl20, lbl10, lbl5, lblLoose, lblVol, lblRev, pShare};
+            Component[] cells = {cell1, pOrigin, lblGrain, lbl50, lbl25, lbl20, lbl10, lbl5, lblLoose, lblVol, lblRev, pShare};
             for (int i = 0; i < cells.length; i++) {
                 c.gridx = i;
                 c.weightx = weights[i];
                 row.add(cells[i], c);
             }
 
+            UIUtils.alignTableContentLeft(row);
+
             rowsContainer.add(row);
 
             JSeparator sep = new JSeparator();
             sep.setForeground(new Color(240, 235, 222));
+            sep.setAlignmentX(Component.CENTER_ALIGNMENT);
             rowsContainer.add(sep);
         }
 
@@ -734,11 +768,9 @@ public class SalesReportPanel extends JPanel {
     }
 
     private JLabel createAlignedNumber(String text) {
-        JLabel lbl = new JLabel(text);
+        JLabel lbl = new JLabel(text, SwingConstants.LEFT);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         lbl.setForeground(new Color(40, 50, 45));
-        lbl.setHorizontalAlignment(SwingConstants.RIGHT);
-        lbl.setBorder(new EmptyBorder(0, 2, 0, 8));
         return lbl;
     }
 

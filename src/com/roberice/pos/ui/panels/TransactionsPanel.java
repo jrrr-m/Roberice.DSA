@@ -267,7 +267,8 @@ public class TransactionsPanel extends JPanel {
         };
 
         GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
         c.weighty = 1.0;
 
         for (int i = 0; i < titles.length; i++) {
@@ -291,6 +292,7 @@ public class TransactionsPanel extends JPanel {
 
             th.add(lbl, c);
         }
+        UIUtils.alignTableContentLeft(th);
         return th;
     }
 
@@ -417,7 +419,8 @@ public class TransactionsPanel extends JPanel {
         double[] weights = {0.10, 0.16, 0.12, 0.30, 0.11, 0.11, 0.10};
 
         GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
         c.weighty = 1.0;
 
         // 1. TXN ID
@@ -446,7 +449,7 @@ public class TransactionsPanel extends JPanel {
         lblItems.setBorder(new EmptyBorder(0, 4, 0, 4));
 
         // 5. Payment Method Pill
-        JPanel pMethod = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 14));
+        JPanel pMethod = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         pMethod.setOpaque(false);
 
         Color mBg, mFg;
@@ -471,7 +474,7 @@ public class TransactionsPanel extends JPanel {
         lblTotal.setBorder(new EmptyBorder(0, 2, 0, 10));
 
         // 7. View Receipt Action Button
-        JPanel pAction = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 12));
+        JPanel pAction = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         pAction.setOpaque(false);
 
         JButton btnReceipt = new JButton("View Receipt");
@@ -494,6 +497,7 @@ public class TransactionsPanel extends JPanel {
             row.add(cells[i], c);
         }
 
+        UIUtils.alignTableContentLeft(row);
         return row;
     }
 

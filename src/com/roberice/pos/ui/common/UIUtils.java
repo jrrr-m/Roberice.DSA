@@ -16,6 +16,7 @@ import java.util.Date;
  * Theme matching the warm ivory and deep forest green Roberice branding.
  */
 public class UIUtils {
+    public static final int TABLE_MAX_WIDTH = 1400;
     // Curated Roberice Brand Color Palette
     public static final Color COLOR_PRIMARY = new Color(27, 77, 50);          // Deep Forest Green #1B4D32
     public static final Color COLOR_PRIMARY_HOVER = new Color(34, 95, 62);     // Hover Green
@@ -179,6 +180,42 @@ public class UIUtils {
 
         DefaultTableCellRenderer right = new DefaultTableCellRenderer();
         right.setHorizontalAlignment(SwingConstants.RIGHT);
+    }
+
+    /**
+     * Keeps custom GridBag/FlowLayout table cells aligned to one consistent
+     * left edge, matching the application's table layout standard.
+     */
+    public static void alignTableContentLeft(Component component) {
+        if (component instanceof JPanel && ((JPanel) component).getLayout() instanceof GridBagLayout) {
+            JPanel tablePart = (JPanel) component;
+            int height = Math.max(1, tablePart.getPreferredSize().height);
+            tablePart.setPreferredSize(new Dimension(TABLE_MAX_WIDTH, height));
+            tablePart.setMaximumSize(new Dimension(TABLE_MAX_WIDTH, height));
+            tablePart.setAlignmentX(Component.LEFT_ALIGNMENT);
+        }
+        if (component instanceof JLabel) {
+            JLabel label = (JLabel) component;
+            label.setHorizontalAlignment(SwingConstants.LEFT);
+            String text = label.getText();
+            if (text != null && !text.startsWith("<html>") && text.length() > 45) {
+                String escaped = text.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;");
+                label.setText("<html><div style='width:220px'>" + escaped + "</div></html>");
+            }
+        }
+        if (component instanceof JPanel) {
+            LayoutManager layout = ((JPanel) component).getLayout();
+            if (layout instanceof FlowLayout) {
+                ((FlowLayout) layout).setAlignment(FlowLayout.LEFT);
+            }
+        }
+        if (component instanceof Container) {
+            for (Component child : ((Container) component).getComponents()) {
+                alignTableContentLeft(child);
+            }
+        }
     }
 
     public static JLabel createBadge(String text, Color bg, Color fg) {
