@@ -7,21 +7,23 @@ import com.roberice.pos.db.SalesDAO;
 import com.roberice.pos.model.Inventory;
 import com.roberice.pos.model.Product;
 import com.roberice.pos.model.SalesTransaction;
+import com.roberice.pos.service.AuthSession;
 import com.roberice.pos.ui.common.CustomCharts;
 import com.roberice.pos.ui.common.UIUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Executive Store Dashboard & Analytics Panel (Section 2.2 in User Manual).
+ * Modern Executive Store Dashboard & Analytics Panel.
+ * Matches the warm ivory/green palette with KPI badge cards, sales trend,
+ * product category donut, top selling products list, and low stock alerts.
  */
 public class DashboardPanel extends JPanel {
     private final ProductDAO productDAO = new ProductDAO();
@@ -31,7 +33,8 @@ public class DashboardPanel extends JPanel {
     // Metric Labels
     private final JLabel lblVarieties = new JLabel("0");
     private final JLabel lblInventoryValue = new JLabel("₱ 0.00");
-    private final JLabel lbl7DaySales = new JLabel("₱ 0.00");
+    private final JLabel lbl7DaySalesCount = new JLabel("0");
+    private final JLabel lbl7DaySalesTotal = new JLabel("₱ 0.00 total");
     private final JLabel lblLowStock = new JLabel("0");
     private final JLabel lblAgingStock = new JLabel("0");
 
@@ -39,13 +42,9 @@ public class DashboardPanel extends JPanel {
     private final CustomCharts.SalesTrendBarChart barChart = new CustomCharts.SalesTrendBarChart();
     private final CustomCharts.VarietyDonutChart donutChart = new CustomCharts.VarietyDonutChart();
 
-    // Recent Transactions Table
-    private final DefaultTableModel recentTableModel = new DefaultTableModel(
-            new String[]{"Receipt #", "Date & Time", "Cashier", "Payment", "Total Amount"}, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) { return false; }
-    };
-    private final JTable tblRecent = new JTable(recentTableModel);
+    // Dynamic Lists
+    private final JPanel topSellingContainer = new JPanel();
+    private final JPanel lowStockContainer = new JPanel();
 
     public DashboardPanel() {
         setLayout(new BorderLayout());
@@ -54,37 +53,85 @@ public class DashboardPanel extends JPanel {
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBackground(UIUtils.COLOR_BG);
-        content.setBorder(new EmptyBorder(20, 24, 20, 24));
+        content.setBorder(new EmptyBorder(16, 22, 24, 22));
 
-        // 1. KPI Cards Row
-        JPanel kpiRow = new JPanel(new GridLayout(1, 5, 14, 0));
-        kpiRow.setBackground(UIUtils.COLOR_BG);
-        kpiRow.setMaximumSize(new Dimension(2000, 95));
+        // 1. KPI Cards Grid (4 in top row, 1 in row 2)
+        JPanel kpiRow1 = new JPanel(new GridLayout(1, 4, 14, 0));
+        kpiRow1.setOpaque(false);
+        kpiRow1.setMaximumSize(new Dimension(3000, 100));
+        kpiRow1.setPreferredSize(new Dimension(1000, 100));
 
-        kpiRow.add(createKpiCard("Active Varieties", lblVarieties, UIUtils.COLOR_PRIMARY));
-        kpiRow.add(createKpiCard("Inventory Value", lblInventoryValue, UIUtils.COLOR_SUCCESS));
-        kpiRow.add(createKpiCard("7-Day Sales", lbl7DaySales, UIUtils.COLOR_INFO));
-        kpiRow.add(createKpiCard("Low Stock Alerts", lblLowStock, UIUtils.COLOR_WARNING));
-        kpiRow.add(createKpiCard("Aging Stock (>60d)", lblAgingStock, UIUtils.COLOR_DANGER));
+        // Total Varieties Card
+        kpiRow1.add(createKpiCard(
+                "TOTAL VARIETIES",
+                lblVarieties,
+                "Active Rice Items",
+                new Color(237, 243, 236), // Soft mint bg
+                "box"
+        ));
 
-        // 2. Charts Row
+        // Inventory Value Card
+        kpiRow1.add(createKpiCard(
+                "INVENTORY VALUE",
+                lblInventoryValue,
+                "Estimated Wholesale",
+                new Color(209, 250, 229), // Emerald tint
+                "peso"
+        ));
+
+        // Sales (7 Days) Card
+        kpiRow1.add(createKpiCardDual(
+                "SALES (7 DAYS)",
+                lbl7DaySalesCount,
+                lbl7DaySalesTotal,
+                new Color(243, 232, 255), // Purple tint
+                "cart"
+        ));
+
+        // Low Stock Items Card
+        kpiRow1.add(createKpiCard(
+                "LOW STOCK ITEMS",
+                lblLowStock,
+                "Needs Restocking",
+                new Color(254, 243, 199), // Amber tint
+                "warning"
+        ));
+
+        // Row 2 of KPIs (Old Stock Alert)
+        JPanel kpiRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        kpiRow2.setOpaque(false);
+        kpiRow2.setMaximumSize(new Dimension(3000, 100));
+        kpiRow2.setPreferredSize(new Dimension(1000, 100));
+
+        JPanel oldStockCard = createKpiCard(
+                "OLD STOCK ALERT",
+                lblAgingStock,
+                "> 60 Days Old (FIFO Action)",
+                new Color(254, 226, 226), // Rose/red tint
+                "clock"
+        );
+        oldStockCard.setPreferredSize(new Dimension(280, 100));
+        kpiRow2.add(oldStockCard);
+
+        // 2. Charts Row (Sales Trend & Donut)
         JPanel chartsRow = new JPanel(new GridLayout(1, 2, 16, 0));
-        chartsRow.setBackground(UIUtils.COLOR_BG);
-        chartsRow.setMaximumSize(new Dimension(2000, 280));
+        chartsRow.setOpaque(false);
+        chartsRow.setMaximumSize(new Dimension(3000, 320));
+        chartsRow.setPreferredSize(new Dimension(1000, 290));
 
-        // Bar Chart Card
+        // Left: Sales Trend
         JPanel barCard = UIUtils.createCard();
         barCard.setLayout(new BorderLayout(0, 10));
-        JLabel barTitle = new JLabel("7-Day Sales Trend (PHP)");
+        JLabel barTitle = new JLabel("Sales Trend (Last 7 Days)");
         barTitle.setFont(UIUtils.FONT_TITLE);
         barTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
         barCard.add(barTitle, BorderLayout.NORTH);
         barCard.add(barChart, BorderLayout.CENTER);
 
-        // Donut Chart Card
+        // Right: Product Categories / Variety Sales
         JPanel donutCard = UIUtils.createCard();
         donutCard.setLayout(new BorderLayout(0, 10));
-        JLabel donutTitle = new JLabel("Variety Sales Distribution");
+        JLabel donutTitle = new JLabel("Product Categories / Variety Sales");
         donutTitle.setFont(UIUtils.FONT_TITLE);
         donutTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
         donutCard.add(donutTitle, BorderLayout.NORTH);
@@ -93,48 +140,209 @@ public class DashboardPanel extends JPanel {
         chartsRow.add(barCard);
         chartsRow.add(donutCard);
 
-        // 3. Recent Transactions Table Card
-        JPanel tableCard = UIUtils.createCard();
-        tableCard.setLayout(new BorderLayout(0, 10));
+        // 3. Bottom Row: Top Selling Products (Left) & Low Stock Alerts (Right)
+        JPanel bottomRow = new JPanel(new GridLayout(1, 2, 16, 0));
+        bottomRow.setOpaque(false);
+        bottomRow.setMaximumSize(new Dimension(3000, 300));
+        bottomRow.setPreferredSize(new Dimension(1000, 250));
 
-        JLabel tblTitle = new JLabel("Recent Store Transactions");
-        tblTitle.setFont(UIUtils.FONT_TITLE);
-        tblTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
-        tableCard.add(tblTitle, BorderLayout.NORTH);
+        // Top Selling Card
+        JPanel topSellingCard = UIUtils.createCard();
+        topSellingCard.setLayout(new BorderLayout(0, 10));
 
-        UIUtils.styleTable(tblRecent);
-        JScrollPane scrollTable = new JScrollPane(tblRecent);
-        scrollTable.setBorder(BorderFactory.createLineBorder(UIUtils.COLOR_BORDER, 1));
-        tableCard.add(scrollTable, BorderLayout.CENTER);
+        JPanel tsHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        tsHeader.setOpaque(false);
+        JLabel tsIcon = new JLabel("↗");
+        tsIcon.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        tsIcon.setForeground(new Color(22, 163, 74));
+        JLabel tsTitle = new JLabel("Top Selling Products");
+        tsTitle.setFont(UIUtils.FONT_TITLE);
+        tsTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+        tsHeader.add(tsIcon);
+        tsHeader.add(tsTitle);
+        topSellingCard.add(tsHeader, BorderLayout.NORTH);
 
-        content.add(kpiRow);
-        content.add(Box.createVerticalStrut(18));
+        topSellingContainer.setLayout(new BoxLayout(topSellingContainer, BoxLayout.Y_AXIS));
+        topSellingContainer.setOpaque(false);
+        topSellingCard.add(topSellingContainer, BorderLayout.CENTER);
+
+        // Low Stock Alerts Card
+        JPanel lowStockCard = UIUtils.createCard();
+        lowStockCard.setLayout(new BorderLayout(0, 10));
+
+        JPanel lsHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        lsHeader.setOpaque(false);
+        JLabel lsIcon = new JLabel("⚠️");
+        lsIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        JLabel lsTitle = new JLabel("Low Stock Alerts");
+        lsTitle.setFont(UIUtils.FONT_TITLE);
+        lsTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+        lsHeader.add(lsIcon);
+        lsHeader.add(lsTitle);
+        lowStockCard.add(lsHeader, BorderLayout.NORTH);
+
+        lowStockContainer.setLayout(new BoxLayout(lowStockContainer, BoxLayout.Y_AXIS));
+        lowStockContainer.setOpaque(false);
+        lowStockCard.add(lowStockContainer, BorderLayout.CENTER);
+
+        bottomRow.add(topSellingCard);
+        bottomRow.add(lowStockCard);
+
+        // Add rows to content
+        content.add(kpiRow1);
+        content.add(Box.createVerticalStrut(14));
+        content.add(kpiRow2);
+        content.add(Box.createVerticalStrut(16));
         content.add(chartsRow);
-        content.add(Box.createVerticalStrut(18));
-        content.add(tableCard);
+        content.add(Box.createVerticalStrut(16));
+        content.add(bottomRow);
 
         JScrollPane mainScroll = new JScrollPane(content);
         mainScroll.setBorder(null);
+        mainScroll.setBackground(UIUtils.COLOR_BG);
+        mainScroll.getViewport().setBackground(UIUtils.COLOR_BG);
         mainScroll.getVerticalScrollBar().setUnitIncrement(16);
         add(mainScroll, BorderLayout.CENTER);
 
         refreshData();
     }
 
-    private JPanel createKpiCard(String title, JLabel valueLbl, Color accentColor) {
+    private JPanel createKpiCard(String tag, JLabel valLbl, String subtext, Color badgeBg, String iconSymbol) {
         JPanel card = UIUtils.createCard();
-        card.setLayout(new BorderLayout(0, 4));
+        card.setLayout(new BorderLayout(8, 0));
 
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(UIUtils.FONT_SMALL);
-        lblTitle.setForeground(UIUtils.COLOR_TEXT_MUTED);
+        // Left text block
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.setOpaque(false);
 
-        valueLbl.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        valueLbl.setForeground(accentColor);
+        JLabel lblTag = new JLabel(tag);
+        lblTag.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lblTag.setForeground(UIUtils.COLOR_TEXT_MUTED);
 
-        card.add(lblTitle, BorderLayout.NORTH);
-        card.add(valueLbl, BorderLayout.CENTER);
+        valLbl.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        valLbl.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+
+        JLabel lblSub = new JLabel(subtext);
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        lblSub.setForeground(UIUtils.COLOR_TEXT_MUTED);
+
+        left.add(lblTag);
+        left.add(Box.createVerticalStrut(3));
+        left.add(valLbl);
+        left.add(Box.createVerticalStrut(2));
+        left.add(lblSub);
+
+        // Right icon badge
+        JPanel badge = createIconBadge(iconSymbol, badgeBg);
+
+        card.add(left, BorderLayout.CENTER);
+        card.add(badge, BorderLayout.EAST);
         return card;
+    }
+
+    private JPanel createKpiCardDual(String tag, JLabel valLbl, JLabel subValLbl, Color badgeBg, String iconSymbol) {
+        JPanel card = UIUtils.createCard();
+        card.setLayout(new BorderLayout(8, 0));
+
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.setOpaque(false);
+
+        JLabel lblTag = new JLabel(tag);
+        lblTag.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lblTag.setForeground(UIUtils.COLOR_TEXT_MUTED);
+
+        valLbl.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        valLbl.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+
+        subValLbl.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        subValLbl.setForeground(UIUtils.COLOR_TEXT_MUTED);
+
+        left.add(lblTag);
+        left.add(Box.createVerticalStrut(3));
+        left.add(valLbl);
+        left.add(Box.createVerticalStrut(2));
+        left.add(subValLbl);
+
+        JPanel badge = createIconBadge(iconSymbol, badgeBg);
+
+        card.add(left, BorderLayout.CENTER);
+        card.add(badge, BorderLayout.EAST);
+        return card;
+    }
+
+    private JPanel createIconBadge(String symbol, Color bg) {
+        JPanel badge = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(bg);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+
+                // Draw vector icon inside badge
+                drawBadgeIcon(g2, symbol, getWidth(), getHeight());
+
+                g2.dispose();
+                super.paintComponent(g);
+            }
+
+            private void drawBadgeIcon(Graphics2D g2, String sym, int w, int h) {
+                g2.setStroke(new BasicStroke(1.5f));
+                int cx = w / 2;
+                int cy = h / 2;
+
+                switch (sym) {
+                    case "box":
+                        g2.setColor(new Color(27, 77, 50));
+                        g2.drawRect(cx - 6, cy - 6, 12, 12);
+                        g2.drawLine(cx - 6, cy - 2, cx + 6, cy - 2);
+                        g2.drawLine(cx, cy - 2, cx, cy + 6);
+                        break;
+                    case "peso":
+                        g2.setColor(new Color(5, 150, 105));
+                        g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                        String p = "₱";
+                        int pw = g2.getFontMetrics().stringWidth(p);
+                        g2.drawString(p, cx - pw / 2, cy + 5);
+                        break;
+                    case "cart":
+                        g2.setColor(new Color(147, 51, 234));
+                        g2.drawLine(cx - 7, cy - 5, cx - 4, cy - 5);
+                        g2.drawLine(cx - 4, cy - 5, cx - 2, cy + 3);
+                        g2.drawLine(cx - 2, cy + 3, cx + 5, cy + 3);
+                        g2.drawLine(cx + 5, cy + 3, cx + 6, cy - 3);
+                        g2.drawLine(cx - 4, cy - 3, cx + 6, cy - 3);
+                        g2.fillOval(cx - 2, cy + 5, 2, 2);
+                        g2.fillOval(cx + 4, cy + 5, 2, 2);
+                        break;
+                    case "warning":
+                        g2.setColor(new Color(217, 119, 6));
+                        // Draw triangle warning
+                        int[] xPts = {cx, cx - 7, cx + 7};
+                        int[] yPts = {cy - 6, cy + 6, cy + 6};
+                        g2.drawPolygon(xPts, yPts, 3);
+                        g2.drawLine(cx, cy - 2, cx, cy + 2);
+                        g2.drawLine(cx, cy + 4, cx, cy + 4);
+                        break;
+                    case "clock":
+                        g2.setColor(new Color(220, 38, 38));
+                        g2.drawOval(cx - 6, cy - 6, 12, 12);
+                        g2.drawLine(cx, cy - 4, cx, cy);
+                        g2.drawLine(cx, cy, cx + 3, cy);
+                        break;
+                }
+            }
+        };
+        badge.setOpaque(false);
+        badge.setPreferredSize(new Dimension(34, 34));
+        badge.setMaximumSize(new Dimension(34, 34));
+
+        JPanel wrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        wrap.setOpaque(false);
+        wrap.add(badge);
+        return wrap;
     }
 
     public void refreshData() {
@@ -170,24 +378,33 @@ public class DashboardPanel extends JPanel {
             LocalDate today = LocalDate.now();
             List<CustomCharts.BarItem> barItems = new ArrayList<>();
             double total7Day = 0;
+            int count7Day = 0;
+            DateTimeFormatter barDateFormatter = DateTimeFormatter.ofPattern("MMM dd");
 
             try (Connection conn = DatabaseManager.getConnection()) {
-                String q7 = "SELECT COALESCE(SUM(total_amount), 0) FROM sales_transaction WHERE transaction_status = 'Completed' AND DATE(transaction_date) = ?";
+                String q7 = "SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM sales_transaction WHERE transaction_status = 'Completed' AND DATE(transaction_date) = ?";
                 try (PreparedStatement ps = conn.prepareStatement(q7)) {
                     for (int i = 6; i >= 0; i--) {
                         LocalDate d = today.minusDays(i);
                         ps.setString(1, d.toString());
                         try (ResultSet rs = ps.executeQuery()) {
-                            double daySum = rs.next() ? rs.getDouble(1) : 0;
+                            int dayCount = 0;
+                            double daySum = 0;
+                            if (rs.next()) {
+                                dayCount = rs.getInt(1);
+                                daySum = rs.getDouble(2);
+                            }
+                            count7Day += dayCount;
                             total7Day += daySum;
-                            String dayLbl = (i == 0) ? "Today" : d.getMonthValue() + "/" + d.getDayOfMonth();
+                            String dayLbl = d.format(barDateFormatter);
                             barItems.add(new CustomCharts.BarItem(dayLbl, daySum));
                         }
                     }
                 }
             }
 
-            lbl7DaySales.setText(UIUtils.formatCurrency(total7Day));
+            lbl7DaySalesCount.setText(String.valueOf(count7Day));
+            lbl7DaySalesTotal.setText(UIUtils.formatCurrency(total7Day) + " total");
             barChart.setData(barItems);
 
             // 3. Variety Sales Donut Chart
@@ -226,21 +443,139 @@ public class DashboardPanel extends JPanel {
                 }
             }
 
-            // 5. Recent Transactions
-            List<SalesTransaction> recent = salesDAO.getTransactions(10, null);
-            recentTableModel.setRowCount(0);
-            for (SalesTransaction tx : recent) {
-                recentTableModel.addRow(new Object[]{
-                        String.format("REC-%06d", tx.getTransactionId()),
-                        UIUtils.formatDate(tx.getTransactionDate()),
-                        tx.getCashierName(),
-                        tx.getPaymentMethod(),
-                        UIUtils.formatCurrency(tx.getTotalAmount())
-                });
-            }
+            // 5. Populate Top Selling Products list
+            populateTopSellingProducts();
+
+            // 6. Populate Low Stock Alerts list
+            populateLowStockAlerts(inventories, products);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    private void populateTopSellingProducts() {
+        topSellingContainer.removeAll();
+
+        String sql = """
+            SELECT p.product_name, p.category, 
+                   COALESCE(SUM(ti.quantity), 0) as total_qty,
+                   COALESCE(SUM(ti.subtotal), 0) as total_amount
+            FROM product p
+            JOIN transaction_item ti ON p.product_id = ti.product_id
+            GROUP BY p.product_id, p.product_name, p.category
+            ORDER BY total_amount DESC
+            LIMIT 3
+        """;
+
+        boolean hasItems = false;
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement s = conn.createStatement();
+             ResultSet rs = s.executeQuery(sql)) {
+
+            while (rs.next()) {
+                hasItems = true;
+                String name = rs.getString("product_name");
+                String cat = rs.getString("category");
+                double qty = rs.getDouble("total_qty");
+                double amount = rs.getDouble("total_amount");
+
+                JPanel row = new JPanel(new BorderLayout(10, 0));
+                row.setBackground(new Color(248, 246, 240));
+                row.setBorder(new EmptyBorder(8, 12, 8, 12));
+                row.setMaximumSize(new Dimension(2000, 52));
+
+                JPanel left = new JPanel(new GridLayout(2, 1, 2, 2));
+                left.setOpaque(false);
+                JLabel lblName = new JLabel(name);
+                lblName.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                lblName.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+
+                JLabel lblMeta = new JLabel("Category: " + (cat != null ? cat : "General") + " | Sold: " + (int) qty + " units");
+                lblMeta.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                lblMeta.setForeground(UIUtils.COLOR_TEXT_MUTED);
+
+                left.add(lblName);
+                left.add(lblMeta);
+
+                JLabel lblAmount = new JLabel(UIUtils.formatCurrency(amount));
+                lblAmount.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                lblAmount.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
+
+                row.add(left, BorderLayout.CENTER);
+                row.add(lblAmount, BorderLayout.EAST);
+
+                topSellingContainer.add(row);
+                topSellingContainer.add(Box.createVerticalStrut(6));
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (!hasItems) {
+            JLabel empty = new JLabel("No sales recorded yet.");
+            empty.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+            empty.setForeground(UIUtils.COLOR_TEXT_MUTED);
+            empty.setAlignmentX(Component.CENTER_ALIGNMENT);
+            topSellingContainer.add(Box.createVerticalStrut(20));
+            topSellingContainer.add(empty);
+        }
+
+        topSellingContainer.revalidate();
+        topSellingContainer.repaint();
+    }
+
+    private void populateLowStockAlerts(List<Inventory> inventories, List<Product> products) {
+        lowStockContainer.removeAll();
+        int count = 0;
+
+        for (Inventory inv : inventories) {
+            if ("Low Stock".equalsIgnoreCase(inv.getStockStatus()) || "Out of Stock".equalsIgnoreCase(inv.getStockStatus())) {
+                count++;
+                if (count > 3) break;
+
+                String pName = "Product #" + inv.getProductId();
+                for (Product p : products) {
+                    if (p.getProductId() == inv.getProductId()) {
+                        pName = p.getProductName();
+                        break;
+                    }
+                }
+
+                JPanel row = new JPanel(new BorderLayout(10, 0));
+                row.setBackground(new Color(254, 242, 242));
+                row.setBorder(new EmptyBorder(8, 12, 8, 12));
+                row.setMaximumSize(new Dimension(2000, 50));
+
+                JLabel lblName = new JLabel(pName);
+                lblName.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                lblName.setForeground(new Color(153, 27, 27));
+
+                JLabel lblRemain = new JLabel(inv.getStockSacks() + " sacks remaining");
+                lblRemain.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                lblRemain.setForeground(new Color(185, 28, 28));
+
+                row.add(lblName, BorderLayout.WEST);
+                row.add(lblRemain, BorderLayout.EAST);
+
+                lowStockContainer.add(row);
+                lowStockContainer.add(Box.createVerticalStrut(6));
+            }
+        }
+
+        if (count == 0) {
+            JLabel empty = new JLabel("All items are well stocked!");
+            empty.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            empty.setForeground(new Color(100, 115, 105));
+            empty.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+            JPanel centerWrap = new JPanel(new GridBagLayout());
+            centerWrap.setOpaque(false);
+            centerWrap.add(empty);
+
+            lowStockContainer.add(centerWrap);
+        }
+
+        lowStockContainer.revalidate();
+        lowStockContainer.repaint();
     }
 }

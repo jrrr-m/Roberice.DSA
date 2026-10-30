@@ -1,210 +1,696 @@
 package com.roberice.pos.ui.panels;
 
 import com.roberice.pos.db.InventoryDAO;
+import com.roberice.pos.db.ProductDAO;
 import com.roberice.pos.model.Inventory;
 import com.roberice.pos.model.InventoryBatch;
+import com.roberice.pos.model.Product;
 import com.roberice.pos.service.AuthSession;
 import com.roberice.pos.ui.common.UIUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.List;
 
 /**
- * View Inventory Panel with FIFO Batch Lot Drill-Down and Contextual Actions (Section 1.7 in User Manual).
+ * Modern Available Inventory Panel.
+ * Matches Screenshot 1: Warm ivory card, filter bar, expandable inventory variety rows,
+ * pre-packed pill badges, and FIFO delivery batch lot sub-tables with Open Sack triggers.
  */
 public class ViewInventoryPanel extends JPanel {
     private final InventoryDAO inventoryDAO = new InventoryDAO();
+    private final ProductDAO productDAO = new ProductDAO();
 
-    // Summary Table
-    private final DefaultTableModel summaryModel = new DefaultTableModel(
-            new String[]{"ID", "Rice Variety", "Origin", "Grain Type", "50kg Sacks", "25kg", "20kg", "10kg", "5kg", "Loose (Kg)", "Total (Kg)", "Status"}, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) { return false; }
-    };
-    private final JTable tblSummary = new JTable(summaryModel);
+    private List<Product> allProducts = new ArrayList<>();
+    private List<Inventory> allInventories = new ArrayList<>();
+    private final Map<Integer, List<InventoryBatch>> batchCache = new HashMap<>();
+    private final Set<Integer> expandedProductIds = new HashSet<>();
 
-    // Batch Drill-Down Table
-    private final DefaultTableModel batchModel = new DefaultTableModel(
-            new String[]{"Batch Lot Code", "Received Date", "Storage Age", "50kg Sacks", "25kg", "20kg", "10kg", "5kg", "Loose (Kg)", "Status"}, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) { return false; }
-    };
-    private final JTable tblBatches = new JTable(batchModel);
+    // Filters
+    private final JTextField txtSearch = new JTextField();
+    private final JComboBox<String> cmbOrigin = new JComboBox<>(new String[]{"All Origins", "Local", "Imported"});
+    private final JComboBox<String> cmbRiceType = new JComboBox<>(new String[]{"All Rice Types", "Sinandomeng", "Dinorado", "Jasmine", "Angelika", "Well-Milled", "Glutinous / Malagkit", "Aromatic", "Brown Rice"});
+    private final JComboBox<String> cmbAge = new JComboBox<>(new String[]{"All Stock Ages", "Fresh (<=30d)", "Normal (31-60d)", "Aging (>60d)"});
+    private final JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"All Statuses", "In Stock", "Low Stock", "Out of Stock"});
 
-    private final JLabel lblSelectedProduct = new JLabel("Select a rice variety row above to inspect FIFO delivery lot batches.");
+    // Content container for inventory table rows
+    private final JPanel rowsContainer = new JPanel();
+
+    // Design Colors
+    private static final Color COLOR_APP_BG = new Color(246, 243, 233);
+    private static final Color COLOR_CARD_BG = new Color(255, 253, 246);
+    private static final Color COLOR_CARD_BORDER = new Color(234, 230, 218);
+    private static final Color COLOR_TH_BG = new Color(242, 234, 213);
+    private static final Color COLOR_SUBTH_BG = new Color(243, 236, 218);
+    private static final Color COLOR_SUB_ROW_BG = Color.WHITE;
+    private static final Color COLOR_OPEN_SACK = new Color(178, 85, 15);
+    private static final Color COLOR_OPEN_SACK_HOVER = new Color(150, 70, 10);
 
     public ViewInventoryPanel() {
-        setLayout(new BorderLayout(0, 16));
-        setBackground(UIUtils.COLOR_BG);
-        setBorder(new EmptyBorder(20, 24, 20, 24));
+        setLayout(new BorderLayout(0, 10));
+        setBackground(COLOR_APP_BG);
+        setBorder(new EmptyBorder(10, 16, 16, 16));
 
-        // TOP: Live Inventory Summary Card
-        JPanel topCard = UIUtils.createCard();
-        topCard.setLayout(new BorderLayout(0, 10));
-
-        JPanel topHeader = new JPanel(new BorderLayout());
-        topHeader.setBackground(Color.WHITE);
-        JLabel lblTopTitle = new JLabel("Live Warehouse Inventory Balances");
-        lblTopTitle.setFont(UIUtils.FONT_TITLE);
-        lblTopTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
-
-        JPanel topActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        topActions.setBackground(Color.WHITE);
-
-        JButton btnOpenSack = UIUtils.createPrimaryButton("Open Sack for Loose Rice");
-        btnOpenSack.addActionListener(e -> openSackForSelected());
-
-        JButton btnRefresh = UIUtils.createSecondaryButton("Refresh Table");
-        btnRefresh.addActionListener(e -> refreshData());
-
-        topActions.add(btnOpenSack);
-        topActions.add(btnRefresh);
-
-        topHeader.add(lblTopTitle, BorderLayout.WEST);
-        topHeader.add(topActions, BorderLayout.EAST);
-        topCard.add(topHeader, BorderLayout.NORTH);
-
-        UIUtils.styleTable(tblSummary);
-        JScrollPane scrollSummary = new JScrollPane(tblSummary);
-        scrollSummary.setBorder(BorderFactory.createLineBorder(UIUtils.COLOR_BORDER, 1));
-        scrollSummary.setPreferredSize(new Dimension(800, 250));
-        topCard.add(scrollSummary, BorderLayout.CENTER);
-
-        // BOTTOM: FIFO Batch Drill-Down Card
-        JPanel bottomCard = UIUtils.createCard();
-        bottomCard.setLayout(new BorderLayout(0, 10));
-
-        JPanel bHeader = new JPanel(new BorderLayout());
-        bHeader.setBackground(Color.WHITE);
-
-        JLabel lblBatchTitle = new JLabel("FIFO Batch Lot Breakdown");
-        lblBatchTitle.setFont(UIUtils.FONT_TITLE);
-        lblBatchTitle.setForeground(UIUtils.COLOR_TEXT_PRIMARY);
-
-        lblSelectedProduct.setFont(UIUtils.FONT_SMALL);
-        lblSelectedProduct.setForeground(UIUtils.COLOR_TEXT_MUTED);
-
-        bHeader.add(lblBatchTitle, BorderLayout.WEST);
-        bHeader.add(lblSelectedProduct, BorderLayout.EAST);
-        bottomCard.add(bHeader, BorderLayout.NORTH);
-
-        UIUtils.styleTable(tblBatches);
-        JScrollPane scrollBatches = new JScrollPane(tblBatches);
-        scrollBatches.setBorder(BorderFactory.createLineBorder(UIUtils.COLOR_BORDER, 1));
-        scrollBatches.setPreferredSize(new Dimension(800, 180));
-        bottomCard.add(scrollBatches, BorderLayout.CENTER);
-
-        // Selection listener to load batches
-        tblSummary.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                loadSelectedBatches();
+        // Outer rounded card
+        JPanel card = new JPanel(new BorderLayout(0, 12)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(COLOR_CARD_BG);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
+                g2.setColor(COLOR_CARD_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
+                g2.dispose();
+                super.paintComponent(g);
             }
+        };
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(14, 16, 16, 16));
+
+        // Filter Bar (Search + Dropdowns)
+        JPanel filterBar = createFilterBar();
+        card.add(filterBar, BorderLayout.NORTH);
+
+        // Table Panel (Header + Scrollable Dynamic Rows)
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setOpaque(false);
+
+        JPanel tableHeader = createTableHeader();
+        tablePanel.add(tableHeader, BorderLayout.NORTH);
+
+        rowsContainer.setLayout(new BoxLayout(rowsContainer, BoxLayout.Y_AXIS));
+        rowsContainer.setOpaque(false);
+
+        JScrollPane scrollPane = new JScrollPane(rowsContainer);
+        scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        tablePanel.add(scrollPane, BorderLayout.CENTER);
+
+        card.add(tablePanel, BorderLayout.CENTER);
+        add(card, BorderLayout.CENTER);
+
+        refreshData();
+    }
+
+    private JPanel createFilterBar() {
+        JPanel bar = new JPanel(new BorderLayout(10, 0));
+        bar.setOpaque(false);
+
+        // Search Input
+        JPanel searchBox = new JPanel(new BorderLayout(6, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                g2.setColor(COLOR_CARD_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        searchBox.setOpaque(false);
+        searchBox.setPreferredSize(new Dimension(380, 34));
+        searchBox.setBorder(new EmptyBorder(4, 10, 4, 10));
+
+        JLabel lblSearchIcon = new JLabel("🔍");
+        lblSearchIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 12));
+        lblSearchIcon.setForeground(new Color(150, 155, 150));
+
+        txtSearch.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtSearch.setBorder(null);
+        txtSearch.setOpaque(false);
+        txtSearch.putClientProperty("JTextField.placeholderText", "Search variety, origin, or type...");
+        txtSearch.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { rebuildRows(); }
+            public void removeUpdate(DocumentEvent e) { rebuildRows(); }
+            public void changedUpdate(DocumentEvent e) { rebuildRows(); }
         });
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topCard, bottomCard);
-        splitPane.setResizeWeight(0.55);
-        splitPane.setBorder(null);
+        searchBox.add(lblSearchIcon, BorderLayout.WEST);
+        searchBox.add(txtSearch, BorderLayout.CENTER);
 
-        add(splitPane, BorderLayout.CENTER);
-        refreshData();
+        // Right dropdowns
+        JPanel rightFilters = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        rightFilters.setOpaque(false);
+
+        styleDropdown(cmbOrigin);
+        styleDropdown(cmbRiceType);
+        styleDropdown(cmbAge);
+        styleDropdown(cmbStatus);
+
+        cmbOrigin.addActionListener(e -> rebuildRows());
+        cmbRiceType.addActionListener(e -> rebuildRows());
+        cmbAge.addActionListener(e -> rebuildRows());
+        cmbStatus.addActionListener(e -> rebuildRows());
+
+        rightFilters.add(cmbOrigin);
+        rightFilters.add(cmbRiceType);
+        rightFilters.add(cmbAge);
+        rightFilters.add(cmbStatus);
+
+        bar.add(searchBox, BorderLayout.CENTER);
+        bar.add(rightFilters, BorderLayout.EAST);
+        return bar;
+    }
+
+    private void styleDropdown(JComboBox<String> cmb) {
+        cmb.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        cmb.setBackground(Color.WHITE);
+        cmb.setFocusable(false);
+    }
+
+    private JPanel createTableHeader() {
+        JPanel th = new JPanel(new GridBagLayout());
+        th.setBackground(COLOR_TH_BG);
+        th.setPreferredSize(new Dimension(1000, 36));
+        th.setMinimumSize(new Dimension(800, 36));
+        th.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        th.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(225, 218, 198)));
+
+        // Column weights matching design
+        double[] weights = {0.15, 0.09, 0.08, 0.09, 0.08, 0.16, 0.08, 0.09, 0.08, 0.05, 0.05};
+        String[] titles = {
+            "RICE VARIETY", "ORIGIN & GRAIN", "SACK PRICE", "PER KG (TINATAKAL)",
+            "SACKS LEFT", "PRE-PACKED (25KG / 20KG / 10KG / 5KG)",
+            "LOOSE / TINATAKAL", "TOTAL VOLUME", "AVAILABLE BATCHES", "STATUS", "ACTIONS"
+        };
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1.0;
+
+        for (int i = 0; i < titles.length; i++) {
+            c.gridx = i;
+            c.weightx = weights[i];
+
+            JLabel lbl = new JLabel(titles[i]);
+            lbl.setFont(new Font("Segoe UI", Font.BOLD, 9));
+            lbl.setForeground(new Color(70, 75, 70));
+            lbl.setBorder(new EmptyBorder(0, 4, 0, 4));
+
+            if (i >= 2 && i <= 4) {
+                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
+            } else if (i == 5) {
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            } else if (i == 6 || i == 7) {
+                lbl.setHorizontalAlignment(SwingConstants.RIGHT);
+            } else if (i >= 8) {
+                lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            } else {
+                lbl.setHorizontalAlignment(SwingConstants.LEFT);
+            }
+
+            th.add(lbl, c);
+        }
+        return th;
     }
 
     public void refreshData() {
         try {
-            List<Inventory> list = inventoryDAO.getInventorySummary();
-            summaryModel.setRowCount(0);
+            allProducts = productDAO.getAllProducts(true);
+            allInventories = inventoryDAO.getInventorySummary();
 
-            for (Inventory inv : list) {
-                summaryModel.addRow(new Object[]{
-                        inv.getProductId(),
-                        inv.getProductName(),
-                        inv.getOrigin(),
-                        inv.getRiceType(),
-                        inv.getStockSacks(),
-                        inv.getPackaged25kg(),
-                        inv.getPackaged20kg(),
-                        inv.getPackaged10kg(),
-                        inv.getPackaged5kg(),
-                        String.format("%.2f", inv.getStockKg()),
-                        String.format("%.2f", inv.getTotalStockKg()),
-                        inv.getStockStatus()
-                });
+            batchCache.clear();
+            for (Product p : allProducts) {
+                List<InventoryBatch> batches = inventoryDAO.getBatchesForProduct(p.getProductId(), true);
+                batchCache.put(p.getProductId(), batches);
             }
 
-            if (tblSummary.getRowCount() > 0) {
-                tblSummary.setRowSelectionInterval(0, 0);
-                loadSelectedBatches();
+            // Auto-expand first product by default (e.g., Angelika White Rice)
+            if (expandedProductIds.isEmpty() && !allProducts.isEmpty()) {
+                expandedProductIds.add(allProducts.get(0).getProductId());
             }
+
+            rebuildRows();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    private void loadSelectedBatches() {
-        int row = tblSummary.getSelectedRow();
-        if (row < 0) return;
+    private void rebuildRows() {
+        rowsContainer.removeAll();
 
-        int productId = (int) tblSummary.getValueAt(row, 0);
-        String name = (String) tblSummary.getValueAt(row, 1);
-        lblSelectedProduct.setText("Showing active delivery lots for: " + name);
+        String q = txtSearch.getText().trim().toLowerCase();
+        String origin = (String) cmbOrigin.getSelectedItem();
+        String riceType = (String) cmbRiceType.getSelectedItem();
+        String ageFilter = (String) cmbAge.getSelectedItem();
+        String statusFilter = (String) cmbStatus.getSelectedItem();
 
-        try {
-            List<InventoryBatch> batches = inventoryDAO.getBatchesForProduct(productId, false);
-            batchModel.setRowCount(0);
-
-            for (InventoryBatch b : batches) {
-                long days = b.getAgeInDays();
-                String ageStr = days + " days" + (b.isOldStock() ? " (Aging >60d)" : "");
-
-                batchModel.addRow(new Object[]{
-                        b.getBatchCode(),
-                        b.getReceivedDate() != null ? b.getReceivedDate().toString() : "-",
-                        ageStr,
-                        b.getStockSacks(),
-                        b.getPackaged25kg(),
-                        b.getPackaged20kg(),
-                        b.getPackaged10kg(),
-                        b.getPackaged5kg(),
-                        String.format("%.2f", b.getStockKg()),
-                        b.getStatus()
-                });
+        for (Product p : allProducts) {
+            if (!q.isEmpty() && !p.getProductName().toLowerCase().contains(q) && !p.getRiceType().toLowerCase().contains(q)) {
+                continue;
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+            if (!"All Origins".equals(origin) && !p.getOrigin().equalsIgnoreCase(origin)) {
+                continue;
+            }
+            if (!"All Rice Types".equals(riceType) && !p.getRiceType().toLowerCase().contains(riceType.toLowerCase())) {
+                continue;
+            }
+
+            Inventory inv = findInventory(p.getProductId());
+            String status = inv != null ? inv.getStockStatus() : "Out of Stock";
+            if (!"All Statuses".equals(statusFilter) && !status.equalsIgnoreCase(statusFilter)) {
+                continue;
+            }
+
+            List<InventoryBatch> batches = batchCache.getOrDefault(p.getProductId(), Collections.emptyList());
+
+            // Age filtering check
+            if (!"All Stock Ages".equals(ageFilter)) {
+                boolean matchAge = false;
+                for (InventoryBatch b : batches) {
+                    long age = b.getAgeInDays();
+                    if (ageFilter.startsWith("Fresh") && age <= 30) matchAge = true;
+                    else if (ageFilter.startsWith("Normal") && age > 30 && age <= 60) matchAge = true;
+                    else if (ageFilter.startsWith("Aging") && age > 60) matchAge = true;
+                }
+                if (!matchAge && !batches.isEmpty()) continue;
+            }
+
+            // Add Variety Main Row
+            JPanel varietyRow = createVarietyRow(p, inv, batches);
+            rowsContainer.add(varietyRow);
+
+            // If expanded, add FIFO Sub-table
+            if (expandedProductIds.contains(p.getProductId())) {
+                JPanel subTable = createBatchSubtable(p, batches);
+                rowsContainer.add(subTable);
+            }
+
+            // Divider line between items
+            JSeparator sep = new JSeparator();
+            sep.setForeground(new Color(240, 235, 222));
+            rowsContainer.add(sep);
         }
+
+        rowsContainer.revalidate();
+        rowsContainer.repaint();
     }
 
-    private void openSackForSelected() {
-        int row = tblSummary.getSelectedRow();
-        if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Please select a rice variety row from the table first.", "Selection Required", JOptionPane.WARNING_MESSAGE);
-            return;
+    private Inventory findInventory(int productId) {
+        for (Inventory i : allInventories) {
+            if (i.getProductId() == productId) return i;
+        }
+        return null;
+    }
+
+    private JPanel createVarietyRow(Product p, Inventory inv, List<InventoryBatch> batches) {
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(false);
+        row.setPreferredSize(new Dimension(1000, 56));
+        row.setMinimumSize(new Dimension(800, 56));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
+
+        double[] weights = {0.15, 0.09, 0.08, 0.09, 0.08, 0.16, 0.08, 0.09, 0.08, 0.05, 0.05};
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1.0;
+
+        // 1. Variety Name + Subtitle
+        JPanel cell1 = new JPanel(new GridLayout(2, 1, 0, 1));
+        cell1.setOpaque(false);
+        JLabel lblName = new JLabel(p.getProductName());
+        lblName.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblName.setForeground(new Color(20, 30, 25));
+        JLabel lblSub = new JLabel(p.getRiceType() != null ? p.getRiceType() : "Rice Variety");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        lblSub.setForeground(new Color(130, 140, 135));
+        cell1.add(lblName);
+        cell1.add(lblSub);
+        cell1.setBorder(new EmptyBorder(0, 4, 0, 4));
+
+        // 2. Origin & Grain
+        JPanel cell2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 14));
+        cell2.setOpaque(false);
+        boolean isLocal = "Local".equalsIgnoreCase(p.getOrigin());
+        JLabel badgeOrigin = createBadgePill(p.getOrigin(),
+                isLocal ? new Color(240, 253, 244) : new Color(224, 242, 254),
+                isLocal ? new Color(22, 101, 52) : new Color(14, 116, 144));
+        cell2.add(badgeOrigin);
+
+        // 3. Sack Price
+        JLabel cell3 = new JLabel(UIUtils.formatCurrency(p.getPriceSack()));
+        cell3.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        cell3.setForeground(new Color(20, 30, 25));
+        cell3.setHorizontalAlignment(SwingConstants.RIGHT);
+        cell3.setBorder(new EmptyBorder(0, 2, 0, 8));
+
+        // 4. Per Kg Price
+        JLabel cell4 = new JLabel(UIUtils.formatCurrency(p.getPriceKg()));
+        cell4.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        cell4.setForeground(new Color(20, 30, 25));
+        cell4.setHorizontalAlignment(SwingConstants.RIGHT);
+        cell4.setBorder(new EmptyBorder(0, 2, 0, 8));
+
+        // 5. Sacks Left
+        int sacks = inv != null ? inv.getStockSacks() : 0;
+        JPanel cell5 = new JPanel(new GridLayout(2, 1, 0, 0));
+        cell5.setOpaque(false);
+        JLabel lblSackCount = new JLabel(sacks + " sacks");
+        lblSackCount.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblSackCount.setForeground(new Color(20, 30, 25));
+        lblSackCount.setHorizontalAlignment(SwingConstants.RIGHT);
+        JLabel lblSackSize = new JLabel("(50Kg)");
+        lblSackSize.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+        lblSackSize.setForeground(new Color(130, 140, 135));
+        lblSackSize.setHorizontalAlignment(SwingConstants.RIGHT);
+        cell5.add(lblSackCount);
+        cell5.add(lblSackSize);
+        cell5.setBorder(new EmptyBorder(0, 2, 0, 8));
+
+        // 6. Pre-packed badges
+        JPanel cell6 = new JPanel(new FlowLayout(FlowLayout.CENTER, 3, 14));
+        cell6.setOpaque(false);
+        int p25 = inv != null ? inv.getPackaged25kg() : 0;
+        int p20 = inv != null ? inv.getPackaged20kg() : 0;
+        int p10 = inv != null ? inv.getPackaged10kg() : 0;
+        int p5 = inv != null ? inv.getPackaged5kg() : 0;
+        cell6.add(createMiniPill("25kg: " + p25, new Color(238, 242, 255), new Color(79, 70, 229)));
+        cell6.add(createMiniPill("20kg: " + p20, new Color(248, 250, 252), new Color(100, 116, 139)));
+        cell6.add(createMiniPill("10kg: " + p10, new Color(254, 243, 199), new Color(180, 83, 9)));
+        cell6.add(createMiniPill("5kg: " + p5, new Color(243, 232, 255), new Color(147, 51, 234)));
+
+        // 7. Loose / Tinatakal
+        double looseKg = inv != null ? inv.getStockKg() : 0;
+        JLabel cell7 = new JLabel(String.format("%.2f kg", looseKg));
+        cell7.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        cell7.setForeground(new Color(40, 50, 45));
+        cell7.setHorizontalAlignment(SwingConstants.RIGHT);
+        cell7.setBorder(new EmptyBorder(0, 2, 0, 8));
+
+        // 8. Total Volume
+        double totalKg = inv != null ? ((sacks * 50.0) + (p25 * 25.0) + (p20 * 20.0) + (p10 * 10.0) + (p5 * 5.0) + looseKg) : 0;
+        JLabel cell8 = new JLabel(String.format("%,.2f kg", totalKg));
+        cell8.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        cell8.setForeground(new Color(20, 30, 25));
+        cell8.setHorizontalAlignment(SwingConstants.RIGHT);
+        cell8.setBorder(new EmptyBorder(0, 2, 0, 8));
+
+        // 9. Available Batches button (toggles dropdown)
+        boolean expanded = expandedProductIds.contains(p.getProductId());
+        JButton btnBatches = new JButton(batches.size() + " Batches " + (expanded ? "▲" : "▼"));
+        btnBatches.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        btnBatches.setForeground(new Color(60, 75, 65));
+        btnBatches.setBackground(Color.WHITE);
+        btnBatches.setFocusPainted(false);
+        btnBatches.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(COLOR_CARD_BORDER, 1),
+                new EmptyBorder(3, 6, 3, 6)
+        ));
+        btnBatches.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnBatches.addActionListener(e -> {
+            if (expandedProductIds.contains(p.getProductId())) {
+                expandedProductIds.remove(p.getProductId());
+            } else {
+                expandedProductIds.add(p.getProductId());
+            }
+            rebuildRows();
+        });
+
+        JPanel cell9 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 14));
+        cell9.setOpaque(false);
+        cell9.add(btnBatches);
+
+        // 10. Status pill
+        JPanel cell10 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 14));
+        cell10.setOpaque(false);
+        boolean inStock = sacks > 0 || looseKg > 0;
+        JLabel badgeStatus = createBadgePill(inStock ? "In Stock" : "Low Stock",
+                inStock ? new Color(220, 252, 231) : new Color(254, 242, 242),
+                inStock ? new Color(22, 101, 52) : new Color(185, 28, 28));
+        cell10.add(badgeStatus);
+
+        // 11. Actions: Open Sack button
+        JPanel cell11 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 12));
+        cell11.setOpaque(false);
+        JButton btnOpenSack = createOpenSackButton();
+        btnOpenSack.addActionListener(e -> triggerOpenSack(p));
+        cell11.add(btnOpenSack);
+
+        // Add to row with grid weights
+        Component[] cells = {cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9, cell10, cell11};
+        for (int i = 0; i < cells.length; i++) {
+            c.gridx = i;
+            c.weightx = weights[i];
+            row.add(cells[i], c);
         }
 
-        int productId = (int) tblSummary.getValueAt(row, 0);
-        String name = (String) tblSummary.getValueAt(row, 1);
+        return row;
+    }
 
+    private JPanel createBatchSubtable(Product p, List<InventoryBatch> batches) {
+        JPanel subWrap = new JPanel(new BorderLayout(0, 4));
+        subWrap.setBackground(new Color(252, 250, 244));
+        subWrap.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 225, 212)),
+                new EmptyBorder(8, 14, 10, 14)
+        ));
+
+        // Subtable header bar
+        JPanel subTop = new JPanel(new BorderLayout());
+        subTop.setOpaque(false);
+
+        JLabel lblTitle = new JLabel("● Available Batches for " + p.getProductName() + " (" + batches.size() + " lot(s) currently in warehouse)");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblTitle.setForeground(new Color(178, 85, 15));
+
+        JLabel lblFifo = new JLabel("FIFO: Oldest batches listed first for quality rotation");
+        lblFifo.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        lblFifo.setForeground(new Color(180, 83, 9));
+        lblFifo.setBackground(new Color(254, 243, 199));
+        lblFifo.setOpaque(true);
+        lblFifo.setBorder(new EmptyBorder(2, 6, 2, 6));
+
+        subTop.add(lblTitle, BorderLayout.WEST);
+        subTop.add(lblFifo, BorderLayout.EAST);
+        subWrap.add(subTop, BorderLayout.NORTH);
+
+        // Subtable content
+        JPanel subGrid = new JPanel(new GridBagLayout());
+        subGrid.setOpaque(false);
+
+        double[] subWeights = {0.14, 0.10, 0.10, 0.08, 0.07, 0.07, 0.07, 0.07, 0.09, 0.11, 0.10};
+        String[] subCols = {"BATCH CODE", "DATE RECEIVED", "STOCK AGE", "50KG SACKS", "25KG HALF", "20KG SACKS", "10KG PACKS", "5KG PACKS", "LOOSE KG", "BATCH VOLUME", "ACTIONS"};
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1.0;
+
+        // Header Row
+        JPanel subTh = new JPanel(new GridBagLayout());
+        subTh.setBackground(COLOR_SUBTH_BG);
+        subTh.setPreferredSize(new Dimension(900, 26));
+        subTh.setMinimumSize(new Dimension(800, 26));
+        subTh.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+
+        for (int i = 0; i < subCols.length; i++) {
+            c.gridx = i;
+            c.weightx = subWeights[i];
+            JLabel lbl = new JLabel(subCols[i]);
+            lbl.setFont(new Font("Segoe UI", Font.BOLD, 8));
+            lbl.setForeground(new Color(90, 95, 90));
+            lbl.setHorizontalAlignment(i == 0 || i == 1 ? SwingConstants.LEFT : (i >= 3 && i <= 9 ? SwingConstants.RIGHT : SwingConstants.CENTER));
+            lbl.setBorder(new EmptyBorder(0, 4, 0, 4));
+            subTh.add(lbl, c);
+        }
+
+        JPanel subRowsContainer = new JPanel();
+        subRowsContainer.setLayout(new BoxLayout(subRowsContainer, BoxLayout.Y_AXIS));
+        subRowsContainer.setOpaque(false);
+
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+
+        for (InventoryBatch b : batches) {
+            JPanel bRow = new JPanel(new GridBagLayout());
+            bRow.setBackground(COLOR_SUB_ROW_BG);
+            bRow.setPreferredSize(new Dimension(900, 32));
+            bRow.setMinimumSize(new Dimension(800, 32));
+            bRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+            bRow.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(240, 235, 225)));
+
+            long ageDays = b.getAgeInDays();
+            String ageText = ageDays + "d ";
+            Color ageBg, ageFg;
+            if (ageDays <= 30) {
+                ageText += "(Fresh)";
+                ageBg = new Color(220, 252, 231);
+                ageFg = new Color(22, 101, 52);
+            } else if (ageDays <= 60) {
+                ageText += "(Normal)";
+                ageBg = new Color(224, 242, 254);
+                ageFg = new Color(14, 116, 144);
+            } else {
+                ageText += "(Aging)";
+                ageBg = new Color(254, 243, 199);
+                ageFg = new Color(180, 83, 9);
+            }
+
+            JLabel lblCode = createBadgePill(b.getBatchCode(), new Color(238, 242, 255), new Color(79, 70, 229));
+            lblCode.setBorder(new EmptyBorder(1, 4, 1, 4));
+            JLabel lblDate = new JLabel(b.getReceivedDate() != null ? df.format(b.getReceivedDate()) : "-");
+            lblDate.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lblDate.setBorder(new EmptyBorder(0, 4, 0, 4));
+
+            JLabel lblAge = createBadgePill(ageText, ageBg, ageFg);
+            JLabel lbl50k = new JLabel(b.getStockSacks() + " whole");
+            lbl50k.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lbl50k.setHorizontalAlignment(SwingConstants.RIGHT);
+            lbl50k.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lbl25 = new JLabel(String.valueOf(b.getPackaged25kg()));
+            lbl25.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lbl25.setHorizontalAlignment(SwingConstants.RIGHT);
+            lbl25.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lbl20 = new JLabel(String.valueOf(b.getPackaged20kg()));
+            lbl20.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lbl20.setHorizontalAlignment(SwingConstants.RIGHT);
+            lbl20.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lbl10 = new JLabel(String.valueOf(b.getPackaged10kg()));
+            lbl10.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lbl10.setHorizontalAlignment(SwingConstants.RIGHT);
+            lbl10.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lbl5 = new JLabel(String.valueOf(b.getPackaged5kg()));
+            lbl5.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lbl5.setHorizontalAlignment(SwingConstants.RIGHT);
+            lbl5.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lblLoose = new JLabel(String.format("%.2f kg", b.getStockKg()));
+            lblLoose.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            lblLoose.setHorizontalAlignment(SwingConstants.RIGHT);
+            lblLoose.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JLabel lblVol = new JLabel(String.format("%,.2f kg", b.getTotalKg()));
+            lblVol.setFont(new Font("Segoe UI", Font.BOLD, 10));
+            lblVol.setHorizontalAlignment(SwingConstants.RIGHT);
+            lblVol.setBorder(new EmptyBorder(0, 2, 0, 6));
+
+            JButton btnBatchOpen = createOpenSackButton();
+            btnBatchOpen.addActionListener(e -> triggerOpenSackBatch(p, b));
+            JPanel pAct = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 2));
+            pAct.setOpaque(false);
+            pAct.add(btnBatchOpen);
+
+            Component[] bCells = {lblCode, lblDate, lblAge, lbl50k, lbl25, lbl20, lbl10, lbl5, lblLoose, lblVol, pAct};
+            for (int i = 0; i < bCells.length; i++) {
+                c.gridx = i;
+                c.weightx = subWeights[i];
+                bRow.add(bCells[i], c);
+            }
+            subRowsContainer.add(bRow);
+        }
+
+        JPanel subTableContent = new JPanel(new BorderLayout());
+        subTableContent.add(subTh, BorderLayout.NORTH);
+        subTableContent.add(subRowsContainer, BorderLayout.CENTER);
+        subWrap.add(subTableContent, BorderLayout.CENTER);
+
+        return subWrap;
+    }
+
+    private JButton createOpenSackButton() {
+        JButton btn = new JButton("Open Sack") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(COLOR_OPEN_SACK_HOVER.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(COLOR_OPEN_SACK_HOVER);
+                } else {
+                    g2.setColor(COLOR_OPEN_SACK);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        btn.setForeground(Color.WHITE);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setPreferredSize(new Dimension(72, 24));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private JLabel createBadgePill(String text, Color bg, Color fg) {
+        JLabel lbl = new JLabel(" " + text + " ");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lbl.setOpaque(true);
+        lbl.setBackground(bg);
+        lbl.setForeground(fg);
+        lbl.setBorder(new EmptyBorder(1, 6, 1, 6));
+        return lbl;
+    }
+
+    private JLabel createMiniPill(String text, Color bg, Color fg) {
+        JLabel lbl = new JLabel(" " + text + " ");
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+        lbl.setOpaque(true);
+        lbl.setBackground(bg);
+        lbl.setForeground(fg);
+        lbl.setBorder(new EmptyBorder(1, 4, 1, 4));
+        return lbl;
+    }
+
+    private void triggerOpenSack(Product p) {
         String input = JOptionPane.showInputDialog(this,
-                "How many 50kg whole sacks of " + name + " do you want to open into loose inventory?",
-                "Open Whole Sack", JOptionPane.QUESTION_MESSAGE);
-
+                "Enter number of whole 50kg sacks to open for " + p.getProductName() + ":",
+                "Open Sack to Loose Rice", JOptionPane.QUESTION_MESSAGE);
         if (input != null && !input.trim().isEmpty()) {
             try {
                 int sacks = Integer.parseInt(input.trim());
                 if (sacks > 0) {
-                    boolean ok = inventoryDAO.openSack(productId, "AUTO", sacks, AuthSession.getFullName());
+                    boolean ok = inventoryDAO.openSack(p.getProductId(), "AUTO", sacks, AuthSession.getFullName());
                     if (ok) {
-                        JOptionPane.showMessageDialog(this,
-                                "Successfully opened " + sacks + "x 50kg whole sack(s) of " + name + " into loose inventory.",
-                                "Sack Opened", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Opened " + sacks + " sack(s) (" + (sacks * 50) + "kg loose rice).", "Success", JOptionPane.INFORMATION_MESSAGE);
                         refreshData();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Insufficient whole sacks in stock to open.", "Stock Error", JOptionPane.ERROR_MESSAGE);
                     }
                 }
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error Opening Sack", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Please enter a valid number.", "Invalid Input", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void triggerOpenSackBatch(Product p, InventoryBatch b) {
+        String input = JOptionPane.showInputDialog(this,
+                "Enter number of 50kg sacks to open from Batch " + b.getBatchCode() + ":",
+                "Open Sack (Batch Lot " + b.getBatchCode() + ")", JOptionPane.QUESTION_MESSAGE);
+        if (input != null && !input.trim().isEmpty()) {
+            try {
+                int sacks = Integer.parseInt(input.trim());
+                if (sacks > 0) {
+                    boolean ok = inventoryDAO.openSack(p.getProductId(), b.getBatchCode(), sacks, AuthSession.getFullName());
+                    if (ok) {
+                        JOptionPane.showMessageDialog(this, "Successfully opened " + sacks + " sack(s) from " + b.getBatchCode() + ".", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        refreshData();
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Insufficient stock in this batch lot.", "Stock Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Please enter a valid number.", "Invalid Input", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

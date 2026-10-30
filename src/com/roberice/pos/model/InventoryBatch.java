@@ -75,7 +75,12 @@ public class InventoryBatch {
 
     public long getAgeInDays() {
         if (receivedDate == null) return 0;
-        LocalDate rec = receivedDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate rec;
+        if (receivedDate instanceof java.sql.Date) {
+            rec = ((java.sql.Date) receivedDate).toLocalDate();
+        } else {
+            rec = receivedDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
         LocalDate now = LocalDate.now();
         return ChronoUnit.DAYS.between(rec, now);
     }
